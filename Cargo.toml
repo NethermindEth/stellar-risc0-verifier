@@ -1,5 +1,5 @@
 [workspace]
-members = [""]
+members = ["contracts/risc0-verifier"]
 resolver = "3"
 
 [workspace.package]
