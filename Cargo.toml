@@ -11,7 +11,7 @@ license = "Apache-2.0"
 
 
 [workspace.dependencies]
-soroban-sdk = "22.0.8"
+soroban-sdk = "23.0.2"
 
 [workspace.lints.rust]
 missing_docs = "deny"
