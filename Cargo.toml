@@ -1,17 +1,16 @@
 [workspace]
-members = ["contracts/*"]
+members = ["contracts/risc0-verifier"]
 resolver = "3"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-# FIXME
-repository = "https://github.com/NethermindEth/rust-template"
+repository = "https://github.com/NethermindEth/stellar-risc0-verifier"
 license = "Apache-2.0"
 
 
 [workspace.dependencies]
-soroban-sdk = "22.0.8"
+soroban-sdk = "23.0.2"
 
 [workspace.lints.rust]
 missing_docs = "deny"
