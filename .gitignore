@@ -19,3 +19,6 @@ lcov.info
 # Local settings
 .soroban
 .stellar
+
+# Contracts
+contracts/**/test_snapshots
