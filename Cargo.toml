@@ -8,8 +8,9 @@ edition = "2024"
 repository = "https://github.com/NethermindEth/stellar-risc0-verifier"
 license = "Apache-2.0"
 
-
 [workspace.dependencies]
+ark-bn254 = "=0.4.0"
+ark-ff = "=0.4.2"
 soroban-sdk = "23.0.2"
 
 [workspace.lints.rust]

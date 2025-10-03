@@ -1,0 +1,68 @@
+use ark_bn254::{Fq, Fq2, G1Affine as AG1Affine, G2Affine as AG2Affine};
+use ark_ff::BigInteger256;
+use soroban_sdk::{BytesN, contracttype};
+
+/// BN254 G1 point with XDR serialization support.
+///
+/// Coordinates are stored as 32-byte big-endian values
+#[derive(Clone)]
+#[contracttype]
+pub struct G1Affine {
+    pub x: BytesN<32>,
+    pub y: BytesN<32>,
+}
+
+/// BN254 G2 point with XDR serialization support.
+///
+/// G2 points have coordinates in the extension field Fq2, where each coordinate
+/// is represented as a pair of base field elements. Each component is stored as
+/// a 32-byte big-endian value: `x = x_0 + x_1 * u` and `y = y_0 + y_1 * u`.
+#[derive(Clone)]
+#[contracttype]
+pub struct G2Affine {
+    pub x_0: BytesN<32>,
+    pub x_1: BytesN<32>,
+    pub y_0: BytesN<32>,
+    pub y_1: BytesN<32>,
+}
+
+impl From<G1Affine> for AG1Affine {
+    fn from(point: G1Affine) -> Self {
+        let x_limbs = bytes_to_limbs(&point.x.to_array());
+        let y_limbs = bytes_to_limbs(&point.y.to_array());
+
+        let x = Fq::from(x_limbs);
+        let y = Fq::from(y_limbs);
+
+        AG1Affine::new(x, y)
+    }
+}
+
+impl From<G2Affine> for AG2Affine {
+    fn from(point: G2Affine) -> Self {
+        let x0_limbs = bytes_to_limbs(&point.x_0.to_array());
+        let x1_limbs = bytes_to_limbs(&point.x_1.to_array());
+
+        let y0_limbs = bytes_to_limbs(&point.y_0.to_array());
+        let y1_limbs = bytes_to_limbs(&point.y_1.to_array());
+
+        let x = Fq2::new(Fq::from(x0_limbs), Fq::from(x1_limbs));
+        let y = Fq2::new(Fq::from(y0_limbs), Fq::from(y1_limbs));
+
+        AG2Affine::new(x, y)
+    }
+}
+
+/// Converts 32 bytes in big-endian format to a 4-limb little-endian representation.
+///
+/// This helper function performs the endianness conversion required by the
+/// arkworks library. It takes a 32-byte big-endian array and converts it to
+/// a `BigInteger256` with four u64 limbs in little-endian order.
+fn bytes_to_limbs(bytes: &[u8; 32]) -> BigInteger256 {
+    let mut limbs = [0u64; 4];
+    for i in 0..4 {
+        let start = i * 8;
+        limbs[3 - i] = u64::from_be_bytes(bytes[start..start + 8].try_into().unwrap());
+    }
+    BigInteger256::new(limbs)
+}
