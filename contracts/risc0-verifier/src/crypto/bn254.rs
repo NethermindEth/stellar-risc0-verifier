@@ -1,6 +1,15 @@
-use ark_bn254::{Fq, Fq2, G1Affine as AG1Affine, G2Affine as AG2Affine};
+use ark_bn254::{Fq, Fq2, Fr as AFr, G1Affine as AG1Affine, G2Affine as AG2Affine};
 use ark_ff::BigInteger256;
 use soroban_sdk::{BytesN, contracttype};
+
+/// BN254 scalar field element with XDR serialization support.
+///
+/// Stored as a 32-byte big-endian value.
+#[derive(Clone)]
+#[contracttype]
+pub struct Fr {
+    pub value: BytesN<32>,
+}
 
 /// BN254 G1 point with XDR serialization support.
 ///
@@ -50,6 +59,13 @@ impl From<G2Affine> for AG2Affine {
         let y = Fq2::new(Fq::from(y0_limbs), Fq::from(y1_limbs));
 
         AG2Affine::new(x, y)
+    }
+}
+
+impl From<Fr> for AFr {
+    fn from(scalar: Fr) -> Self {
+        let limbs = bytes_to_limbs(&scalar.value.to_array());
+        AFr::from(limbs)
     }
 }
 
