@@ -6,7 +6,6 @@ extern crate alloc;
 use soroban_sdk::{contract, contractimpl};
 
 mod crypto;
-mod groth16;
 mod test;
 
 #[contract]
