@@ -35,8 +35,8 @@ pub struct G2Affine {
     pub y_1: BytesN<32>,
 }
 
-impl From<G1Affine> for AG1Affine {
-    fn from(point: G1Affine) -> Self {
+impl From<&G1Affine> for AG1Affine {
+    fn from(point: &G1Affine) -> Self {
         let x_limbs = bytes_to_limbs(&point.x.to_array());
         let y_limbs = bytes_to_limbs(&point.y.to_array());
 
@@ -47,8 +47,8 @@ impl From<G1Affine> for AG1Affine {
     }
 }
 
-impl From<G2Affine> for AG2Affine {
-    fn from(point: G2Affine) -> Self {
+impl From<&G2Affine> for AG2Affine {
+    fn from(point: &G2Affine) -> Self {
         let x0_limbs = bytes_to_limbs(&point.x_0.to_array());
         let x1_limbs = bytes_to_limbs(&point.x_1.to_array());
 
@@ -62,8 +62,8 @@ impl From<G2Affine> for AG2Affine {
     }
 }
 
-impl From<Fr> for AFr {
-    fn from(scalar: Fr) -> Self {
+impl From<&Fr> for AFr {
+    fn from(scalar: &Fr) -> Self {
         let limbs = bytes_to_limbs(&scalar.value.to_array());
         AFr::from(limbs)
     }
