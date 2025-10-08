@@ -82,3 +82,82 @@ fn bytes_to_limbs(bytes: &[u8; 32]) -> BigInteger256 {
     }
     BigInteger256::new(limbs)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ark_bn254::{G1Projective, G2Projective};
+    use ark_ec::Group;
+    use ark_ff::{BigInt, BigInteger, PrimeField};
+    use soroban_sdk::Env;
+
+    #[test]
+    fn test_fr_conversion_known_value() {
+        let env = Env::default();
+
+        // Create a known scalar value
+        let expected = AFr::from(42u64);
+        let bigint: BigInt<4> = expected.into_bigint();
+
+        // Convert to big-endian bytes
+        let bytes: [u8; 32] = bigint.to_bytes_be().try_into().unwrap();
+
+        let fr = Fr {
+            value: BytesN::from_array(&env, &bytes),
+        };
+
+        let ark_fr: AFr = (&fr).into();
+        assert_eq!(ark_fr, expected);
+    }
+
+    #[test]
+    fn test_g1_conversion_generator() {
+        let env = Env::default();
+
+        // BN254 G1 generator point
+        let generator = AG1Affine::from(G1Projective::generator());
+        let (x_bigint, y_bigint) = (generator.x.into_bigint(), generator.y.into_bigint());
+
+        // Convert to big-endian bytes
+        let x_bytes: [u8; 32] = x_bigint.to_bytes_be().try_into().unwrap();
+        let y_bytes: [u8; 32] = y_bigint.to_bytes_be().try_into().unwrap();
+
+        let g1 = G1Affine {
+            x: BytesN::from_array(&env, &x_bytes),
+            y: BytesN::from_array(&env, &y_bytes),
+        };
+
+        let ark_g1: AG1Affine = (&g1).into();
+        assert_eq!(ark_g1, generator);
+    }
+
+    #[test]
+    fn test_g2_conversion_generator() {
+        let env = Env::default();
+
+        // BN254 G2 generator point
+        let generator = AG2Affine::from(G2Projective::generator());
+        let (x, y) = (generator.x, generator.y);
+
+        // Convert Fq2 coordinates to bytes
+        let x0_bigint = x.c0.into_bigint();
+        let x1_bigint = x.c1.into_bigint();
+        let y0_bigint = y.c0.into_bigint();
+        let y1_bigint = y.c1.into_bigint();
+
+        let x0_bytes: [u8; 32] = x0_bigint.to_bytes_be().try_into().unwrap();
+        let x1_bytes: [u8; 32] = x1_bigint.to_bytes_be().try_into().unwrap();
+        let y0_bytes: [u8; 32] = y0_bigint.to_bytes_be().try_into().unwrap();
+        let y1_bytes: [u8; 32] = y1_bigint.to_bytes_be().try_into().unwrap();
+
+        let g2 = G2Affine {
+            x_0: BytesN::from_array(&env, &x0_bytes),
+            x_1: BytesN::from_array(&env, &x1_bytes),
+            y_0: BytesN::from_array(&env, &y0_bytes),
+            y_1: BytesN::from_array(&env, &y1_bytes),
+        };
+
+        let ark_g2: AG2Affine = (&g2).into();
+        assert_eq!(ark_g2, generator);
+    }
+}
