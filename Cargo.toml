@@ -1,6 +1,5 @@
 [workspace]
-members = ["contracts/groth16-verifier", "tools/build-utils"]
-
+members = ["contracts/interface", "contracts/groth16-verifier", "tools/build-utils"]
 resolver = "3"
 
 [workspace.package]
