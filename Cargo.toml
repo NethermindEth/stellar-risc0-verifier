@@ -21,6 +21,8 @@ sha2 = "0.10.9"
 
 build-utils = { path = "tools/build-utils" }
 
+risc0-interface = { path = "contracts/interface"}
+
 [workspace.lints.rust]
 missing_docs = "deny"
 unsafe_code = "forbid"
