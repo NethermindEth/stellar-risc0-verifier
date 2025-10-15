@@ -1,5 +1,5 @@
 [package]
-name = "risc0-verifier"
+name = "groth16-verifier"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
