@@ -25,6 +25,8 @@ pub enum Groth16Error {
     InvalidProof = 0,
     /// The number of public inputs does not match the verification key.
     MalformedPublicInputs = 1,
+    /// The seal data is malformed or has incorrect byte length.
+    MalformedSeal = 2,
 }
 
 /// Groth16 verifier contract for RISC Zero receipts of execution.
