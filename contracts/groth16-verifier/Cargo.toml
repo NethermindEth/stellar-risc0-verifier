@@ -1,5 +1,5 @@
 [package]
-name = "risc0-verifier"
+name = "groth16-verifier"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,10 @@ crate-type = ["lib", "cdylib"]
 doctest = false
 
 [dependencies]
-soroban-sdk = { workspace = true }
+soroban-sdk = { workspace = true, features = ["alloc"] }
+ark-bn254 = { workspace = true }
+ark-ec = { workspace = true }
+ark-ff = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
