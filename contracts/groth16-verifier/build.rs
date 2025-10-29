@@ -1,12 +1,15 @@
 // This build script helps us generate the VerificationKey for the
 // RiscZeroGroth16Verifier during the compilation. The key is fetched from
-// `vk.json` and makes it available as a const to the contract. This way, the
+// `verification_key.json` and makes it available as a const to the contract. This way, the
 // verification key gets included in the contract at compile time, so we don't
 // have to initialize the contract and spend resources on reading from the
 // ledger the verification key.
 
+use std::{env, fs, path::PathBuf, str::FromStr};
+
+use ark_bn254::{Fq, Fq2, G1Affine, G2Affine};
+use build_utils::{Sha256Digest, tagged_iter};
 use serde::Deserialize;
-use std::{env, fs, path::PathBuf};
 
 #[derive(Deserialize)]
 struct VerificationKeyJson {
@@ -24,6 +27,15 @@ struct PointG1Json {
     y: String,
 }
 
+impl PointG1Json {
+    pub fn into_g1_affine(&self) -> G1Affine {
+        let x = Fq::from_str(&self.x).expect("Invalid field element for G1.x");
+        let y = Fq::from_str(&self.y).expect("Invalid field element for G1.x");
+
+        G1Affine::new_unchecked(x, y)
+    }
+}
+
 #[derive(Deserialize)]
 struct PointG2Json {
     x1: String,
@@ -32,6 +44,19 @@ struct PointG2Json {
     y2: String,
 }
 
+impl PointG2Json {
+    pub fn into_g2_affine(&self) -> G2Affine {
+        let x1 = Fq::from_str(&self.x1).expect("Invalid field element for G2.x1");
+        let x2 = Fq::from_str(&self.x2).expect("Invalid field element for G2.x2");
+        let y1 = Fq::from_str(&self.y1).expect("Invalid field element for G2.y1");
+        let y2 = Fq::from_str(&self.y2).expect("Invalid field element for G2.y2");
+
+        let x = Fq2::new(x1, x2);
+        let y = Fq2::new(y1, y2);
+
+        G2Affine::new_unchecked(x, y)
+    }
+}
 fn fq(s: &str) -> String {
     format!("ark_ff::MontFp!(\"{}\")", s)
 }
