@@ -57,6 +57,15 @@ impl PointG2Json {
         G2Affine::new_unchecked(x, y)
     }
 }
+
+#[derive(Deserialize)]
+struct VerifierParameters {
+    version: String,
+    control_root: String,
+    bn254_control_id: String,
+    verification_key: VerificationKeyJson,
+}
+
 fn fq(s: &str) -> String {
     format!("ark_ff::MontFp!(\"{}\")", s)
 }
