@@ -1,6 +1,6 @@
 // This build script helps us generate the VerificationKey for the
 // RiscZeroGroth16Verifier during the compilation. The key is fetched from
-// `verification_key.json` and makes it available as a const to the contract. This way, the
+// `config.json` and makes it available as a const to the contract. This way, the
 // verification key gets included in the contract at compile time, so we don't
 // have to initialize the contract and spend resources on reading from the
 // ledger the verification key.
@@ -91,12 +91,14 @@ fn g2(p: &PointG2Json) -> String {
 }
 
 fn main() {
-    let path = PathBuf::from("vk.json");
+    let path = PathBuf::from("parameters.json");
     let data = fs::read_to_string(path).unwrap();
-    let vk_json: VerificationKeyJson = serde_json::from_str(&data).unwrap();
+    let params: VerifierParameters = serde_json::from_str(&data).unwrap();
+
+    let vk = &params.verification_key;
 
     // Generate the VerificationKey IC array
-    let ic: Vec<String> = vk_json.ic.iter().map(|p| g1(p)).collect();
+    let ic: Vec<String> = vk.ic.iter().map(|p| g1(p)).collect();
     let ic = ic.join(", ");
 
     let code = format!(
@@ -107,10 +109,10 @@ fn main() {
     delta: {},
     ic: [{}],
 }}",
-        g1(&vk_json.alpha),
-        g2(&vk_json.beta),
-        g2(&vk_json.gamma),
-        g2(&vk_json.delta),
+        g1(&vk.alpha),
+        g2(&vk.beta),
+        g2(&vk.gamma),
+        g2(&vk.delta),
         ic
     );
 
