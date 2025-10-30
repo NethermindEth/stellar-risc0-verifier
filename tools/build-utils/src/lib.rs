@@ -49,7 +49,7 @@ pub type Sha256Digest = [u8; DIGEST_SIZE];
 /// # Panics
 ///
 /// Panics if the point cannot be serialized or if it has no xy coordinates
-pub fn hash_point(p: impl AffineRepr) -> Sha256Digest {
+pub fn hash_point(p: &impl AffineRepr) -> Sha256Digest {
     let mut buffer = Vec::new();
     let (x, y) = p.xy().unwrap();
     x.serialize_uncompressed(&mut buffer).unwrap();
