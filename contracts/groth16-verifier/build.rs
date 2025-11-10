@@ -8,7 +8,7 @@
 use std::{env, fs, path::PathBuf, str::FromStr};
 
 use ark_bn254::{Fq, Fq2, G1Affine, G2Affine};
-use build_utils::{Sha256Digest, hash_point, tagged_iter, tagged_struct};
+use build_utils::{Sha256Digest, hash_g1_point, hash_g2_point, tagged_iter, tagged_struct};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -95,20 +95,26 @@ fn compute_vk_digest(vk: &VerificationKeyJson) -> Sha256Digest {
     let beta = vk.beta.into_g2_affine();
     let gamma = vk.gamma.into_g2_affine();
     let delta = vk.delta.into_g2_affine();
-    let ic = vk.ic.iter().map(|point| {
-        let p = point.into_g1_affine();
-        hash_point(&p)
-    });
+
+    let alpha_hash = hash_g1_point(&alpha);
+    let beta_hash = hash_g2_point(&beta);
+    let gamma_hash = hash_g2_point(&gamma);
+    let delta_hash = hash_g2_point(&delta);
+
+    let ic: Vec<Sha256Digest> = vk
+        .ic
+        .iter()
+        .map(|point| {
+            let p = point.into_g1_affine();
+            hash_g1_point(&p)
+        })
+        .collect();
+
+    let ic_list = tagged_iter("risc0_groth16.VerifyingKey.IC", ic.into_iter());
 
     tagged_struct(
         "risc0_groth16.VerifyingKey",
-        &[
-            hash_point(&alpha),
-            hash_point(&beta),
-            hash_point(&gamma),
-            hash_point(&delta),
-            tagged_iter("risc0_groth16.VerifyingKey.IC", ic),
-        ],
+        &[alpha_hash, beta_hash, gamma_hash, delta_hash, ic_list],
     )
 }
 
