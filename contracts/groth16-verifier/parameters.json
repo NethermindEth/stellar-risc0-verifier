@@ -1,6 +1,6 @@
 {
-    "version": "2.2.0",
-    "control_root": "c9cd2d004642e46838bdef0c4f426d2608af844fd193ee594658ce5947faa218",
+    "version": "3.0.0",
+    "control_root": "a54dc85ac99f851c92d7c96d7318af41dbe7c0194edfcc37eb4d422a998c1f56",
     "bn254_control_id": "04446e66d300eb7fb45c9726bb53c793dda407a62e9601618bb43c5c14657ac0",
     "verification_key": {
         "alpha": {
