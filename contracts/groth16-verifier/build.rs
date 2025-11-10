@@ -46,13 +46,13 @@ struct PointG2Json {
 
 impl PointG2Json {
     pub fn into_g2_affine(&self) -> G2Affine {
-        let x1 = Fq::from_str(&self.x1).expect("Invalid field element for G2.x1");
-        let x2 = Fq::from_str(&self.x2).expect("Invalid field element for G2.x2");
-        let y1 = Fq::from_str(&self.y1).expect("Invalid field element for G2.y1");
-        let y2 = Fq::from_str(&self.y2).expect("Invalid field element for G2.y2");
+        let x_im = Fq::from_str(&self.x1).expect("Invalid field element for G2.x1");
+        let x_re = Fq::from_str(&self.x2).expect("Invalid field element for G2.x2");
+        let y_im = Fq::from_str(&self.y1).expect("Invalid field element for G2.y1");
+        let y_re = Fq::from_str(&self.y2).expect("Invalid field element for G2.y2");
 
-        let x = Fq2::new(x1, x2);
-        let y = Fq2::new(y1, y2);
+        let x = Fq2::new(x_re, x_im);
+        let y = Fq2::new(y_re, y_im);
 
         G2Affine::new_unchecked(x, y)
     }
@@ -85,8 +85,8 @@ fn g1(p: &PointG1Json) -> String {
 fn g2(p: &PointG2Json) -> String {
     format!(
         "ark_bn254::G2Affine::new_unchecked({}, {})",
-        fq2(&p.x1, &p.x2),
-        fq2(&p.y1, &p.y2)
+        fq2(&p.x2, &p.x1),
+        fq2(&p.y2, &p.y1)
     )
 }
 
@@ -152,11 +152,14 @@ fn format_byte_array<const N: usize>(bytes: &[u8; N]) -> String {
 fn compute_control_roots(control_root: &str) -> ([u8; 16], [u8; 16]) {
     let mut bytes = hex::decode(control_root).expect("Invalid hex string for control_root");
     bytes.reverse();
+
     let mut control_root_0 = [0u8; 16];
     let mut control_root_1 = [0u8; 16];
 
-    control_root_0.copy_from_slice(&bytes[0..16]);
-    control_root_1.copy_from_slice(&bytes[16..32]);
+    // Note: Solidity's splitDigest returns (lower128, upper128) but assigns them as
+    // control_root0 = upper128, control_root1 = lower128. We match that convention here.
+    control_root_0.copy_from_slice(&bytes[16..32]); // Upper 128 bits
+    control_root_1.copy_from_slice(&bytes[0..16]); // Lower 128 bits
 
     (control_root_0, control_root_1)
 }
