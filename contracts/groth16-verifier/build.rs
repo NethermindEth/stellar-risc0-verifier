@@ -32,7 +32,9 @@ impl PointG1Json {
         let x = Fq::from_str(&self.x).expect("Invalid field element for G1.x");
         let y = Fq::from_str(&self.y).expect("Invalid field element for G1.x");
 
-        G1Affine::new_unchecked(x, y)
+        let point = G1Affine::new(x, y);
+        assert!(point.is_on_curve());
+        point
     }
 }
 
@@ -54,7 +56,9 @@ impl PointG2Json {
         let x = Fq2::new(x_re, x_im);
         let y = Fq2::new(y_re, y_im);
 
-        G2Affine::new_unchecked(x, y)
+        let point = G2Affine::new(x, y);
+        assert!(point.is_on_curve());
+        point
     }
 }
 
