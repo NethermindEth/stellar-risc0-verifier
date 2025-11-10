@@ -125,7 +125,7 @@ fn compute_vk_digest(vk: &VerificationKeyJson) -> Sha256Digest {
 fn compute_selector(
     control_root: &str,
     bn254_control_id: &str,
-    vk: &VerificationKeyJson,
+    vk_digest: Sha256Digest,
 ) -> [u8; 4] {
     let control_root_bytes =
         hex::decode(control_root).expect("Invalid hex string for control_root");
@@ -138,11 +138,12 @@ fn compute_selector(
     let mut bn254_control_id: Sha256Digest = bn254_control_id_bytes
         .try_into()
         .expect("bn254_control_id must be exactly 32 bytes");
+
     bn254_control_id.reverse();
 
     let tag_struct = tagged_struct(
         "risc0.Groth16ReceiptVerifierParameters",
-        &[control_root, bn254_control_id, compute_vk_digest(vk)],
+        &[control_root, bn254_control_id, vk_digest],
     );
 
     [tag_struct[0], tag_struct[1], tag_struct[2], tag_struct[3]]
@@ -174,12 +175,28 @@ fn main() {
     let params: VerifierParameters = serde_json::from_str(&data).unwrap();
 
     let vk = &params.verification_key;
-    let selector = compute_selector(&params.control_root, &params.bn254_control_id, vk);
+
+    // Compute all parameters (this will print intermediate values)
+    let vk_digest = compute_vk_digest(vk);
+    let selector = compute_selector(&params.control_root, &params.bn254_control_id, vk_digest);
     let (control_root_0, control_root_1) = compute_control_roots(&params.control_root);
-    let bn254_control_id: [u8; 32] = hex::decode(params.bn254_control_id)
+    let bn254_control_id: [u8; 32] = hex::decode(params.bn254_control_id.clone())
         .expect("Invalid hex string for bn254_control_id")
         .try_into()
         .expect("bn254_control_id must be exactly 32 bytes");
+
+    // Print key verifier parameters during build
+    println!("cargo:warning===========================================");
+    println!("cargo:warning=RISC Zero Groth16 Verifier Parameters");
+    println!("cargo:warning===========================================");
+    println!("cargo:warning=SELECTOR:            {}", hex::encode(&selector));
+    println!("cargo:warning=CONTROL_ROOT:        {}", &params.control_root);
+    println!("cargo:warning=CONTROL_ROOT_0:      {}", hex::encode(&control_root_0));
+    println!("cargo:warning=CONTROL_ROOT_1:      {}", hex::encode(&control_root_1));
+    println!("cargo:warning=BN254_CONTROL_ID:    {}", &params.bn254_control_id);
+    println!("cargo:warning=VERIFIER_KEY_DIGEST: {}", hex::encode(&vk_digest));
+    println!("cargo:warning=VERSION:             {}", &params.version);
+    println!("cargo:warning===========================================");
 
     // Generate the VerificationKey IC array
     let ic: Vec<String> = vk.ic.iter().map(|p| g1(p)).collect();
