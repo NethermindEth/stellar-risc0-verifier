@@ -52,6 +52,11 @@ impl RiscZeroGroth16Verifier {
     const BN254_CONTROL_ID: [u8; 32] = include!(concat!(env!("OUT_DIR"), "/bn254_control_id.rs"));
     const SELECTOR: [u8; 4] = include!(concat!(env!("OUT_DIR"), "/selector.rs"));
 
+    /// Returns the verifier's selector
+    pub fn selector() -> BytesN<4> {
+        BytesN::from_array(&Env::default(), &Self::SELECTOR)
+    }
+
     /// Verifies a Groth16 proof with the given public signals.
     ///
     /// This function implements the core Groth16 verification algorithm using the BN254
