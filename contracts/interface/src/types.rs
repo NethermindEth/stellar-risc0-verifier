@@ -122,6 +122,62 @@ pub enum SystemExitCode {
     SystemSplit = 2,
 }
 
+/// Output of a RISC Zero guest program execution.
+///
+/// The output contains the public results of execution (journal) and any
+/// assumptions (dependencies on other proofs). This structure is hashed
+/// to produce the `output` field in [`ReceiptClaim`].
+///
+/// # Fields
+///
+/// - **journal_digest**: SHA-256 hash of the journal (public outputs)
+/// - **assumptions_digest**: SHA-256 hash of assumptions (zero for unconditional proofs)
+#[contracttype]
+pub struct Output {
+    /// SHA-256 digest of the journal bytes (public outputs from the guest program).
+    journal_digest: JournalDigest,
+    /// SHA-256 digest of assumptions (dependencies on other receipts).
+    ///
+    /// For unconditional receipts (the common case), this is the zero digest.
+    assumptions_digest: BytesN<32>,
+}
+
+impl Output {
+    /// Computes the SHA-256 digest of this [`Output`] struct.
+    ///
+    /// This digest is used as the `output` field in a [`ReceiptClaim`]. The hashing
+    /// scheme follows RISC Zero's tagged hash specification to prevent cross-protocol attacks.
+    ///
+    /// # Hash Construction
+    ///
+    /// The digest is computed as:
+    /// ```text
+    /// SHA-256(tag_digest || journal_digest || assumptions_digest || length)
+    /// ```
+    ///
+    /// Where:
+    /// - `tag_digest` = SHA-256("risc0.Output")
+    /// - `length` = 0x02 0x00 (2 fields in little-endian u16)
+    ///
+    /// # Returns
+    ///
+    /// A 32-byte SHA-256 digest of the output structure.
+    pub fn digest(&self, env: &Env) -> BytesN<32> {
+        let tag_bytes = Bytes::from_slice(env, b"risc0.Output");
+        let tag_digest = env.crypto().sha256(&tag_bytes);
+
+        let mut data = Bytes::new(env);
+        data.append(&tag_digest.into());
+        data.append(&self.journal_digest.clone().into());
+        data.append(&self.assumptions_digest.clone().into());
+
+        let length_bytes = Bytes::from_array(env, &[0x02, 0x00]);
+        data.append(&length_bytes);
+
+        env.crypto().sha256(&data).into()
+    }
+}
+
 impl ReceiptClaim {
     /// Constructs a standard [`ReceiptClaim`] for a successful guest program execution.
     ///
