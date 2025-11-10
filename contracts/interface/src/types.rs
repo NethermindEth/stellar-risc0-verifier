@@ -1,30 +1,98 @@
-use soroban_sdk::{Bytes, BytesN, contracttype};
+//! # RISC Zero Receipt Types
+//!
+//! This module defines the core data structures used for RISC Zero proof verification
+//! on Soroban. These types represent the cryptographic proofs and claims that attest to the
+//! correct execution of guest programs.
+//!
+//! ## Type Overview
+//!
+//! - [`ImageId`]: Uniquely identifies a guest program
+//! - [`JournalDigest`]: Hash of the public outputs from execution
+//! - [`Seal`]: The zero-knowledge proof itself
+//! - [`Receipt`]: Complete proof package with seal and claim
+//! - [`ReceiptClaim`]: Detailed execution claim including state and exit codes
+//!
+//! ## Verification Flow
+//!
+//! 1. The prover executes off-chain, producing a journal (public outputs) and cryptographic proof
+//! 2. A [`Receipt`] is constructed with the [`Seal`] (proof) and a `claim_digest` (hash of the [`ReceiptClaim`])
+//! 3. The receipt is submitted to a Soroban verifier contract for validation
+//! 4. The verifier cryptographically validates that the seal proves the claim
 
-/// Identifier for a RISC Zero guest program (32 bytes).
+use soroban_sdk::{Bytes, BytesN, Env, bytesn, contracttype};
+
+/// Identifier for a RISC Zero guest program.
+///
+/// This is a 32-byte digest that uniquely identifies the compiled guest program binary.
+/// It serves as the "pre-state digest" in the RISC Zero proof system, ensuring that
+/// the proof corresponds to execution of a specific, known program.
+///
+/// The image ID is deterministically derived from the guest program's ELF binary and
+/// is stable across builds if the program logic remains unchanged.
 pub type ImageId = BytesN<32>;
 
-/// SHA-256 digest of the journal bytes (32 bytes).
+/// SHA-256 digest of the journal bytes.
+///
+/// The journal contains the public outputs of a guest program's execution. This 32-byte
+/// digest is computed over the raw journal bytes and becomes part of the receipt claim.
+///
+/// # Security Note
+///
+/// The journal digest must be computed correctly using SHA-256. An incorrect digest
+/// will cause verification to fail even if the seal is valid.
 pub type JournalDigest = BytesN<32>;
 
 /// Encoded cryptographic proof (SNARK) as raw bytes.
+///
+/// The seal is a zero-knowledge proof that attests to correct execution of a guest program.
+/// It contains the cryptographic evidence that can be efficiently verified on-chain without
+/// revealing the execution trace or private inputs.
+///
+/// The seal format depends on the proof system used (e.g., Groth16). It is serialized as
+/// raw bytes for storage and transmission in Soroban contracts.
 pub type Seal = Bytes;
 
 /// A receipt attesting to a claim using the RISC Zero proof system.
 ///
-/// A receipt contains two parts:
-/// - **Seal**: A zero-knowledge proof attesting to knowledge of a witness for the claim
-/// - **Claim**: A set of public outputs; for zkVM execution, this is the hash of a `ReceiptClaim` struct
+/// A receipt is the complete proof package that can be verified on-chain. It combines
+/// a cryptographic proof (seal) with a claim about what was executed.
 ///
-/// # Important
+/// # Structure
 ///
-/// The `claim_digest` field must be a hash computed by the caller for verification to
-/// have meaningful guarantees. Treat this similar to verifying an ECDSA signature, in that hashing
-/// is a key operation in verification. The most common way to calculate this hash is to use
-/// `ReceiptClaim::new(image_id, journal_digest).digest()` for successful executions.
+/// - **[`seal`](Receipt::seal)**: A zero-knowledge proof attesting to knowledge of a witness for the claim
+/// - **[`claim_digest`](Receipt::claim_digest)**: The SHA-256 hash of a [`ReceiptClaim`] struct containing
+///   execution details (program ID, journal, exit code, etc.)
+///
+/// # Important: Claim Digest Validation
+///
+/// The `claim_digest` field **must** be correctly computed by the caller for verification to
+/// have meaningful security guarantees. This is similar to verifying an ECDSA signature where
+/// the message hash must be computed correctly.
+///
+/// For standard successful executions, use:
+/// ```ignore
+/// let claim = ReceiptClaim::new(&env, image_id, journal_digest);
+/// let claim_digest = claim.digest(&env);
+/// ```
+///
+/// # Example
+///
+/// ```ignore
+/// use risc0_verifier_interface::{Receipt, ReceiptClaim, Seal};
+///
+/// let claim = ReceiptClaim::new(&env, image_id, journal_digest);
+/// let receipt = Receipt {
+///     seal: seal,
+///     claim_digest: claim.digest(&env),
+/// };
+/// ```
 #[contracttype]
 pub struct Receipt {
-    seal: Seal,
-    claim_digest: BytesN<32>,
+    /// The zero-knowledge proof (SNARK) as raw bytes.
+    pub seal: Seal,
+    /// SHA-256 digest of the [`ReceiptClaim`] struct.
+    pub claim_digest: BytesN<32>,
+}
 
 /// A claim about the execution of a RISC Zero guest program.
 ///
