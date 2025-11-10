@@ -14,7 +14,9 @@
 use soroban_sdk::{Env, contractclient};
 
 // Re-export types at crate root for convenience
-pub use types::{ImageId, JournalDigest, Receipt, Seal};
+pub use types::{
+    ExitCode, ImageId, JournalDigest, Output, Receipt, ReceiptClaim, Seal, SystemExitCode,
+};
 
 pub mod types;
 
