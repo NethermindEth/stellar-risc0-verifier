@@ -6,11 +6,13 @@ extern crate alloc;
 use ark_bn254::{Bn254, Fq12, Fr as AFr};
 use ark_ec::{AffineRepr, CurveGroup, pairing::Pairing};
 use ark_ff::Field;
-use risc0_interface::{ImageId, JournalDigest, Receipt, RiscZeroVerifierInterface, Seal};
-use soroban_sdk::{Env, Vec, contract, contracterror, contractimpl};
+use risc0_interface::{
+    ImageId, JournalDigest, Receipt, ReceiptClaim, RiscZeroVerifierInterface, Seal,
+};
+use soroban_sdk::{BytesN, Env, Vec, contract, contracterror, contractimpl};
 
 use crypto::bn254::Fr;
-use types::{ArkProof, Groth16Proof, VerificationKey};
+use types::{ArkProof, Groth16Proof, Groth16Seal, VerificationKey};
 
 mod crypto;
 mod test;
@@ -100,8 +102,61 @@ impl RiscZeroGroth16Verifier {
 impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
     type Proof = Groth16Proof;
 
-    fn verify(_env: Env, _seal: Seal, _image_id: ImageId, _journal: JournalDigest) {}
-    fn verify_integrity(_receipt: Receipt) {}
+    fn verify(env: Env, seal: Seal, image_id: ImageId, journal: JournalDigest) {
+        let claim = ReceiptClaim::new(&env, image_id, journal);
+        let receipt = Receipt {
+            seal,
+            claim_digest: claim.digest(&env),
+        };
+        Self::verify_integrity(env, receipt);
+    }
+
+    fn verify_integrity(env: Env, receipt: Receipt) {
+        let seal = Groth16Seal::try_from(receipt.seal).unwrap();
+
+        if seal.selector != Self::SELECTOR {
+            panic!("bad selector"); // TODO: Add missing error
+        }
+
+        let (claim_0, claim_1) = split_digest(&env, receipt.claim_digest);
+
+        let control_root_0 = {
+            let mut bytes = [0u8; 32];
+            bytes[16..32].copy_from_slice(&Self::CONTROL_ROOT_0);
+            BytesN::from_array(&env, &bytes)
+        };
+
+        let control_root_1 = {
+            let mut bytes = [0u8; 32];
+            bytes[16..32].copy_from_slice(&Self::CONTROL_ROOT_1);
+            BytesN::from_array(&env, &bytes)
+        };
+
+        // Convert BN254_CONTROL_ID to BytesN<32>
+        let bn254_control_id: BytesN<32> = BytesN::from_array(&env, &Self::BN254_CONTROL_ID);
+
+        // Create public signals as Fr field elements
+        let mut pub_signals = Vec::new(&env);
+        pub_signals.push_back(Fr {
+            value: control_root_0,
+        });
+        pub_signals.push_back(Fr {
+            value: control_root_1,
+        });
+        pub_signals.push_back(Fr { value: claim_0 });
+        pub_signals.push_back(Fr { value: claim_1 });
+        pub_signals.push_back(Fr {
+            value: bn254_control_id,
+        });
+
+        // Verify the proof and panic if invalid
+        match Self::verify_proof(seal.proof, pub_signals) {
+            Ok(true) => {} // Proof is valid
+            Ok(false) => panic!("Proof verification failed"),
+            Err(e) => panic!("Proof verification error: {:?}", e),
+        }
+    }
+}
 
 /// Splits a digest into two 32-byte parts after reversing byte order.
 ///
