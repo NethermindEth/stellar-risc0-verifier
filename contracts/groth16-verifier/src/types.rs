@@ -115,11 +115,13 @@ impl TryFrom<Bytes> for Groth16Proof {
         offset += G1_SIZE;
 
         // Parse G2Affine point 'b'
+        // risc0 encodes G2 in Ethereum-style format: (imaginary, real) for each Fq2
+        // But arkworks expects (c0=real, c1=imaginary), so we swap during parsing
         let b = G2Affine {
-            x_0: extract_field_element(&value, offset)?,
-            x_1: extract_field_element(&value, offset + FIELD_ELEMENT_SIZE)?,
-            y_0: extract_field_element(&value, offset + FIELD_ELEMENT_SIZE * 2)?,
-            y_1: extract_field_element(&value, offset + FIELD_ELEMENT_SIZE * 3)?,
+            x_0: extract_field_element(&value, offset + FIELD_ELEMENT_SIZE)?, // real part (second)
+            x_1: extract_field_element(&value, offset)?,                      // imag part (first)
+            y_0: extract_field_element(&value, offset + FIELD_ELEMENT_SIZE * 3)?, // real part (fourth)
+            y_1: extract_field_element(&value, offset + FIELD_ELEMENT_SIZE * 2)?, // imag part (third)
         };
         offset += G2_SIZE;
 
