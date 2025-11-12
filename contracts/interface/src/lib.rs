@@ -5,18 +5,13 @@
 //! ## Core Components
 //!
 //! - [`Receipt`]: Contains a seal (cryptographic proof) and a claim digest
-//! - [`Seal`]: The zero-knowledge proof (SNARK) that attests to correct execution
-//! - [`ImageId`]: Identifies the guest program that was executed
-//! - [`JournalDigest`]: SHA-256 hash of the public outputs from the execution
 
 #![no_std]
 
-use soroban_sdk::{Env, contractclient};
+use soroban_sdk::{Bytes, BytesN, Env, contractclient};
 
 // Re-export types at crate root for convenience
-pub use types::{
-    ExitCode, ImageId, JournalDigest, Output, Receipt, ReceiptClaim, Seal, SystemExitCode,
-};
+pub use types::{ExitCode, Output, Receipt, ReceiptClaim, SystemExitCode};
 
 pub mod types;
 
@@ -74,7 +69,7 @@ pub trait RiscZeroVerifierInterface {
     ///     journal_digest, // Hash of public outputs
     /// );
     /// ```
-    fn verify(env: Env, seal: Seal, image_id: ImageId, journal: JournalDigest);
+    fn verify(env: Env, seal: Bytes, image_id: BytesN<32>, journal: BytesN<32>);
 
     /// Verifies a full RISC Zero receipt with arbitrary claim parameters.
     ///
