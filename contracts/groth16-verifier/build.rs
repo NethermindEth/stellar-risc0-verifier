@@ -143,6 +143,18 @@ fn format_byte_array<const N: usize>(bytes: &[u8; N]) -> String {
     format!("[{}]", formatted.join(", "))
 }
 
+fn compute_control_roots(control_root: &str) -> ([u8; 16], [u8; 16]) {
+    let mut bytes = hex::decode(control_root).expect("Invalid hex string for control_root");
+    bytes.reverse();
+    let mut control_root_0 = [0u8; 16];
+    let mut control_root_1 = [0u8; 16];
+
+    control_root_0.copy_from_slice(&bytes[0..16]);
+    control_root_1.copy_from_slice(&bytes[16..32]);
+
+    (control_root_0, control_root_1)
+}
+
 fn main() {
     let path = PathBuf::from("parameters.json");
     let data = fs::read_to_string(path).unwrap();
@@ -150,6 +162,7 @@ fn main() {
 
     let vk = &params.verification_key;
     let selector = compute_selector(&params.control_root, &params.bn254_control_id, vk);
+    let (control_root_0, control_root_1) = compute_control_roots(&params.control_root);
 
     // Generate the VerificationKey IC array
     let ic: Vec<String> = vk.ic.iter().map(|p| g1(p)).collect();
@@ -170,9 +183,16 @@ fn main() {
         ic
     );
     let selector_code = format_byte_array(&selector);
+    let control_root_0_code = format_byte_array(&control_root_0);
+    let control_root_1_code = format_byte_array(&control_root_1);
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     fs::write(out_dir.join("verification_key.rs"), vk_code)
         .expect("failed to write verification_key.rs");
     fs::write(out_dir.join("selector.rs"), selector_code).expect("failed to write selector.rs");
+
+    fs::write(out_dir.join("control_root_0.rs"), control_root_0_code)
+        .expect("failed to write control_root_0.rs");
+    fs::write(out_dir.join("control_root_1.rs"), control_root_1_code)
+        .expect("failed to write control_root_1.rs");
 }
