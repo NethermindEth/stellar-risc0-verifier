@@ -189,12 +189,30 @@ fn main() {
     println!("cargo:warning===========================================");
     println!("cargo:warning=RISC Zero Groth16 Verifier Parameters");
     println!("cargo:warning===========================================");
-    println!("cargo:warning=SELECTOR:            {}", hex::encode(&selector));
-    println!("cargo:warning=CONTROL_ROOT:        {}", &params.control_root);
-    println!("cargo:warning=CONTROL_ROOT_0:      {}", hex::encode(&control_root_0));
-    println!("cargo:warning=CONTROL_ROOT_1:      {}", hex::encode(&control_root_1));
-    println!("cargo:warning=BN254_CONTROL_ID:    {}", &params.bn254_control_id);
-    println!("cargo:warning=VERIFIER_KEY_DIGEST: {}", hex::encode(&vk_digest));
+    println!(
+        "cargo:warning=SELECTOR:            {}",
+        hex::encode(&selector)
+    );
+    println!(
+        "cargo:warning=CONTROL_ROOT:        {}",
+        &params.control_root
+    );
+    println!(
+        "cargo:warning=CONTROL_ROOT_0:      {}",
+        hex::encode(&control_root_0)
+    );
+    println!(
+        "cargo:warning=CONTROL_ROOT_1:      {}",
+        hex::encode(&control_root_1)
+    );
+    println!(
+        "cargo:warning=BN254_CONTROL_ID:    {}",
+        &params.bn254_control_id
+    );
+    println!(
+        "cargo:warning=VERIFIER_KEY_DIGEST: {}",
+        hex::encode(&vk_digest)
+    );
     println!("cargo:warning=VERSION:             {}", &params.version);
     println!("cargo:warning===========================================");
 
