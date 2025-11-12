@@ -6,10 +6,8 @@ extern crate alloc;
 use ark_bn254::{Bn254, Fq12, Fr as AFr};
 use ark_ec::{AffineRepr, CurveGroup, pairing::Pairing};
 use ark_ff::Field;
-use risc0_interface::{
-    ImageId, JournalDigest, Receipt, ReceiptClaim, RiscZeroVerifierInterface, Seal,
-};
-use soroban_sdk::{BytesN, Env, String, Vec, contract, contracterror, contractimpl};
+use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface};
+use soroban_sdk::{Bytes, BytesN, Env, String, Vec, contract, contracterror, contractimpl};
 
 use crypto::bn254::Fr;
 use types::{ArkProof, Groth16Proof, Groth16Seal, VerificationKey};
@@ -112,7 +110,7 @@ impl RiscZeroGroth16Verifier {
 impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
     type Proof = Groth16Proof;
 
-    fn verify(env: Env, seal: Seal, image_id: ImageId, journal: JournalDigest) {
+    fn verify(env: Env, seal: Bytes, image_id: BytesN<32>, journal: BytesN<32>) {
         let claim = ReceiptClaim::new(&env, image_id, journal);
         let receipt = Receipt {
             seal,
