@@ -64,9 +64,9 @@ impl From<Groth16Proof> for ArkProof {
 // Byte layout constants
 const SELECTOR_SIZE: u32 = 4;
 const FIELD_ELEMENT_SIZE: u32 = 32;
-const G1_SIZE: u32 = FIELD_ELEMENT_SIZE * 2;  // x, y
-const G2_SIZE: u32 = FIELD_ELEMENT_SIZE * 4;  // x_0, x_1, y_0, y_1
-const PROOF_SIZE: u32 = G1_SIZE + G2_SIZE + G1_SIZE;  // a, b, c
+const G1_SIZE: u32 = FIELD_ELEMENT_SIZE * 2; // x, y
+const G2_SIZE: u32 = FIELD_ELEMENT_SIZE * 4; // x_0, x_1, y_0, y_1
+const PROOF_SIZE: u32 = G1_SIZE + G2_SIZE + G1_SIZE; // a, b, c
 const SEAL_SIZE: u32 = SELECTOR_SIZE + PROOF_SIZE;
 
 /// Helper to extract a 32-byte field element at a given offset

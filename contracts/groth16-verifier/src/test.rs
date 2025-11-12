@@ -1,8 +1,7 @@
 #![cfg(test)]
 
 use crate::{RiscZeroGroth16Verifier, RiscZeroGroth16VerifierClient};
-use risc0_interface::types::ReceiptClaim;
-use soroban_sdk::{Bytes, BytesN, Env, testutils::BytesN as _};
+use soroban_sdk::{Bytes, BytesN, Env};
 
 #[test]
 fn test_verify_proof() {
