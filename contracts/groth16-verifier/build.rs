@@ -8,7 +8,7 @@
 use std::{env, fs, path::PathBuf, str::FromStr};
 
 use ark_bn254::{Fq, Fq2, G1Affine, G2Affine};
-use build_utils::{Sha256Digest, tagged_iter};
+use build_utils::{Sha256Digest, hash_point, tagged_iter, tagged_struct};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -90,18 +90,72 @@ fn g2(p: &PointG2Json) -> String {
     )
 }
 
+fn compute_vk_digest(vk: &VerificationKeyJson) -> Sha256Digest {
+    let alpha = vk.alpha.into_g1_affine();
+    let beta = vk.beta.into_g2_affine();
+    let gamma = vk.gamma.into_g2_affine();
+    let delta = vk.delta.into_g2_affine();
+    let ic = vk.ic.iter().map(|point| {
+        let p = point.into_g1_affine();
+        hash_point(&p)
+    });
+
+    tagged_struct(
+        "risc0_groth16.VerifyingKey",
+        &[
+            hash_point(&alpha),
+            hash_point(&beta),
+            hash_point(&gamma),
+            hash_point(&delta),
+            tagged_iter("risc0_groth16.VerifyingKey.IC", ic),
+        ],
+    )
+}
+
+fn compute_selector(
+    control_root: &str,
+    bn254_control_id: &str,
+    vk: &VerificationKeyJson,
+) -> [u8; 4] {
+    let control_root_bytes =
+        hex::decode(control_root).expect("Invalid hex string for control_root");
+    let control_root: Sha256Digest = control_root_bytes
+        .try_into()
+        .expect("control_root must be exactly 32 bytes");
+
+    let bn254_control_id_bytes =
+        hex::decode(bn254_control_id).expect("Invalid hex string for bn254_control_id");
+    let mut bn254_control_id: Sha256Digest = bn254_control_id_bytes
+        .try_into()
+        .expect("bn254_control_id must be exactly 32 bytes");
+    bn254_control_id.reverse();
+
+    let tag_struct = tagged_struct(
+        "risc0.Groth16ReceiptVerifierParameters",
+        &[control_root, bn254_control_id, compute_vk_digest(vk)],
+    );
+
+    [tag_struct[0], tag_struct[1], tag_struct[2], tag_struct[3]]
+}
+
+fn format_byte_array<const N: usize>(bytes: &[u8; N]) -> String {
+    let formatted: Vec<String> = bytes.iter().map(|b| format!("{:#04x}", b)).collect();
+    format!("[{}]", formatted.join(", "))
+}
+
 fn main() {
     let path = PathBuf::from("parameters.json");
     let data = fs::read_to_string(path).unwrap();
     let params: VerifierParameters = serde_json::from_str(&data).unwrap();
 
     let vk = &params.verification_key;
+    let selector = compute_selector(&params.control_root, &params.bn254_control_id, vk);
 
     // Generate the VerificationKey IC array
     let ic: Vec<String> = vk.ic.iter().map(|p| g1(p)).collect();
     let ic = ic.join(", ");
 
-    let code = format!(
+    let vk_code = format!(
         "VerificationKey {{
     alpha: {},
     beta: {},
@@ -115,8 +169,10 @@ fn main() {
         g2(&vk.delta),
         ic
     );
+    let selector_code = format_byte_array(&selector);
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    fs::write(out_dir.join("verification_key.rs"), code)
+    fs::write(out_dir.join("verification_key.rs"), vk_code)
         .expect("failed to write verification_key.rs");
+    fs::write(out_dir.join("selector.rs"), selector_code).expect("failed to write selector.rs");
 }
