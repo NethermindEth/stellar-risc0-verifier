@@ -28,7 +28,7 @@ struct PointG1Json {
 }
 
 impl PointG1Json {
-    pub fn into_g1_affine(&self) -> G1Affine {
+    pub fn to_g1_affine(&self) -> G1Affine {
         let x = Fq::from_str(&self.x).expect("Invalid field element for G1.x");
         let y = Fq::from_str(&self.y).expect("Invalid field element for G1.x");
 
@@ -47,7 +47,7 @@ struct PointG2Json {
 }
 
 impl PointG2Json {
-    pub fn into_g2_affine(&self) -> G2Affine {
+    pub fn to_g2_affine(&self) -> G2Affine {
         let x_im = Fq::from_str(&self.x1).expect("Invalid field element for G2.x1");
         let x_re = Fq::from_str(&self.x2).expect("Invalid field element for G2.x2");
         let y_im = Fq::from_str(&self.y1).expect("Invalid field element for G2.y1");
@@ -95,10 +95,10 @@ fn g2(p: &PointG2Json) -> String {
 }
 
 fn compute_vk_digest(vk: &VerificationKeyJson) -> Sha256Digest {
-    let alpha = vk.alpha.into_g1_affine();
-    let beta = vk.beta.into_g2_affine();
-    let gamma = vk.gamma.into_g2_affine();
-    let delta = vk.delta.into_g2_affine();
+    let alpha = vk.alpha.to_g1_affine();
+    let beta = vk.beta.to_g2_affine();
+    let gamma = vk.gamma.to_g2_affine();
+    let delta = vk.delta.to_g2_affine();
 
     let alpha_hash = hash_g1_point(&alpha);
     let beta_hash = hash_g2_point(&beta);
@@ -109,7 +109,7 @@ fn compute_vk_digest(vk: &VerificationKeyJson) -> Sha256Digest {
         .ic
         .iter()
         .map(|point| {
-            let p = point.into_g1_affine();
+            let p = point.to_g1_affine();
             hash_g1_point(&p)
         })
         .collect();
@@ -191,7 +191,7 @@ fn main() {
     println!("cargo:warning===========================================");
     println!(
         "cargo:warning=SELECTOR:            {}",
-        hex::encode(&selector)
+        hex::encode(selector)
     );
     println!(
         "cargo:warning=CONTROL_ROOT:        {}",
@@ -199,11 +199,11 @@ fn main() {
     );
     println!(
         "cargo:warning=CONTROL_ROOT_0:      {}",
-        hex::encode(&control_root_0)
+        hex::encode(control_root_0)
     );
     println!(
         "cargo:warning=CONTROL_ROOT_1:      {}",
-        hex::encode(&control_root_1)
+        hex::encode(control_root_1)
     );
     println!(
         "cargo:warning=BN254_CONTROL_ID:    {}",
@@ -211,13 +211,13 @@ fn main() {
     );
     println!(
         "cargo:warning=VERIFIER_KEY_DIGEST: {}",
-        hex::encode(&vk_digest)
+        hex::encode(vk_digest)
     );
     println!("cargo:warning=VERSION:             {}", &params.version);
     println!("cargo:warning===========================================");
 
     // Generate the VerificationKey IC array
-    let ic: Vec<String> = vk.ic.iter().map(|p| g1(p)).collect();
+    let ic: Vec<String> = vk.ic.iter().map(g1).collect();
     let ic = ic.join(", ");
 
     let vk_code = format!(
