@@ -9,7 +9,7 @@ use ark_ff::Field;
 use risc0_interface::{
     ImageId, JournalDigest, Receipt, ReceiptClaim, RiscZeroVerifierInterface, Seal,
 };
-use soroban_sdk::{BytesN, Env, Vec, contract, contracterror, contractimpl};
+use soroban_sdk::{BytesN, Env, String, Vec, contract, contracterror, contractimpl};
 
 use crypto::bn254::Fr;
 use types::{ArkProof, Groth16Proof, Groth16Seal, VerificationKey};
@@ -55,6 +55,11 @@ impl RiscZeroGroth16Verifier {
     /// Returns the verifier's selector
     pub fn selector() -> BytesN<4> {
         BytesN::from_array(&Env::default(), &Self::SELECTOR)
+    }
+
+    /// Returns the RISC Zero verifier version
+    pub fn version() -> String {
+        String::from_str(&Env::default(), Self::VERSION)
     }
 
     /// Verifies a Groth16 proof with the given public signals.
