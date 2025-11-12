@@ -163,6 +163,10 @@ fn main() {
     let vk = &params.verification_key;
     let selector = compute_selector(&params.control_root, &params.bn254_control_id, vk);
     let (control_root_0, control_root_1) = compute_control_roots(&params.control_root);
+    let bn254_control_id: [u8; 32] = hex::decode(params.bn254_control_id)
+        .expect("Invalid hex string for bn254_control_id")
+        .try_into()
+        .expect("bn254_control_id must be exactly 32 bytes");
 
     // Generate the VerificationKey IC array
     let ic: Vec<String> = vk.ic.iter().map(|p| g1(p)).collect();
@@ -185,14 +189,21 @@ fn main() {
     let selector_code = format_byte_array(&selector);
     let control_root_0_code = format_byte_array(&control_root_0);
     let control_root_1_code = format_byte_array(&control_root_1);
+    let bn254_control_id_code = format_byte_array(&bn254_control_id);
+    let version_code = format!("\"{}\"", params.version);
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     fs::write(out_dir.join("verification_key.rs"), vk_code)
         .expect("failed to write verification_key.rs");
+
+    fs::write(out_dir.join("version.rs"), version_code).expect("failed to write version.rs");
     fs::write(out_dir.join("selector.rs"), selector_code).expect("failed to write selector.rs");
 
     fs::write(out_dir.join("control_root_0.rs"), control_root_0_code)
         .expect("failed to write control_root_0.rs");
     fs::write(out_dir.join("control_root_1.rs"), control_root_1_code)
         .expect("failed to write control_root_1.rs");
+
+    fs::write(out_dir.join("bn254_control_id.rs"), bn254_control_id_code)
+        .expect("failed to write bn254_control_id.rs");
 }
