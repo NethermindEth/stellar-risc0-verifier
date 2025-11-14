@@ -9,7 +9,7 @@
 //! - [`ImageId`]: Uniquely identifies a guest program
 //! - [`JournalDigest`]: Hash of the public outputs from execution
 //! - [`Seal`]: The zero-knowledge proof itself
-//! - [`Receipt`]: Complete proof package with seal and claim
+//! - [`Receipt`]: A receipt attesting to a claim using the RISC Zero proof system.
 //! - [`ReceiptClaim`]: Detailed execution claim including state and exit codes
 //!
 //! ## Verification Flow
