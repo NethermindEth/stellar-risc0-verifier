@@ -30,7 +30,7 @@ struct PointG1Json {
 impl PointG1Json {
     pub fn to_g1_affine(&self) -> G1Affine {
         let x = Fq::from_str(&self.x).expect("Invalid field element for G1.x");
-        let y = Fq::from_str(&self.y).expect("Invalid field element for G1.x");
+        let y = Fq::from_str(&self.y).expect("Invalid field element for G1.y");
 
         let point = G1Affine::new(x, y);
         assert!(point.is_on_curve());
