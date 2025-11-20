@@ -47,13 +47,10 @@ pub type Sha256Digest = [u8; DIGEST_SIZE];
 
 /// Convert an Fq field element to big-endian bytes (Solidity format)
 fn fq_to_be_bytes(f: &Fq) -> [u8; 32] {
-    let mut bytes = [0u8; 32];
-    // PrimeField::into_bigint gives us the value, serialize to bytes
-    let mut temp = Vec::new();
-    f.serialize_uncompressed(&mut temp).unwrap();
-    bytes.copy_from_slice(&temp[..32]);
-    bytes.reverse(); // arkworks uses little-endian, we need big-endian
-    bytes
+    let mut buffer = [0u8; 32];
+    f.serialize_uncompressed(buffer.as_mut_slice()).unwrap();
+    buffer.reverse(); // arkworks uses little-endian, we need big-endian
+    buffer
 }
 
 /// Hash a G1 point (Fq coordinates)
