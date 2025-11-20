@@ -15,6 +15,7 @@ use crypto::bn254::Fr;
 use types::{ArkProof, Groth16Proof, Groth16Seal, VerificationKey};
 
 mod crypto;
+#[cfg(test)]
 mod test;
 mod types;
 
