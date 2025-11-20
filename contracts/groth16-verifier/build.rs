@@ -11,12 +11,26 @@ use ark_bn254::{Fq, Fq2, G1Affine, G2Affine};
 use build_utils::{Sha256Digest, hash_g1_point, hash_g2_point, tagged_iter, tagged_struct};
 use serde::Deserialize;
 
+/// JSON representation of a Groth16 verification key.
 #[derive(Deserialize)]
 struct VerificationKeyJson {
+    /// The alpha element in G1, part of the verification key.
     alpha: PointG1Json,
+    /// The beta element in G2, part of the verification key.
     beta: PointG2Json,
+    /// The gamma element in G2, used in the pairing equation
+    /// involving the public inputs.
     gamma: PointG2Json,
+    /// The delta element in G2, used in the main pairing check
+    /// during proof verification.
     delta: PointG2Json,
+    /// The input coefficient (IC) points in G1.
+    ///
+    /// These are used to compute a linear combination of the
+    /// public inputs:
+    ///   acc = IC[0] + sum_i public_inputs[i] * IC[i+1].
+    ///
+    /// The length of this vector is typically `num_public_inputs + 1`.
     #[serde(rename = "IC")]
     ic: Vec<PointG1Json>,
 }
