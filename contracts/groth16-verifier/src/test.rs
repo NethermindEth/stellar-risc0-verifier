@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use crate::{RiscZeroGroth16Verifier, RiscZeroGroth16VerifierClient};
 use soroban_sdk::{Bytes, BytesN, Env};
 
