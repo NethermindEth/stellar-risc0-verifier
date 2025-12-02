@@ -11,6 +11,14 @@ use ark_bn254::{Fq, Fq2, G1Affine, G2Affine};
 use build_utils::{Sha256Digest, hash_g1_point, hash_g2_point, tagged_iter, tagged_struct};
 use serde::Deserialize;
 
+struct VerificationKey {
+    alpha: G1Affine,
+    beta: G2Affine,
+    gamma: G2Affine,
+    delta: G2Affine,
+    ic: Vec<G1Affine>,
+}
+
 /// JSON representation of a Groth16 verification key.
 #[derive(Deserialize)]
 struct VerificationKeyJson {
@@ -33,6 +41,25 @@ struct VerificationKeyJson {
     /// The length of this vector is typically `num_public_inputs + 1`.
     #[serde(rename = "IC")]
     ic: Vec<PointG1Json>,
+}
+
+impl VerificationKeyJson {
+    pub fn to_verification_key(&self) -> VerificationKey {
+        let alpha = self.alpha.to_g1_affine();
+        let beta = self.beta.to_g2_affine();
+        let gamma = self.gamma.to_g2_affine();
+        let delta = self.delta.to_g2_affine();
+
+        let ic: Vec<G1Affine> = self.ic.iter().map(|point| point.to_g1_affine()).collect();
+
+        VerificationKey {
+            alpha,
+            beta,
+            gamma,
+            delta,
+            ic,
+        }
+    }
 }
 
 #[derive(Deserialize)]
