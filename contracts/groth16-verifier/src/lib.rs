@@ -10,7 +10,6 @@ use soroban_sdk::{
 
 use types::{Groth16Proof, Groth16Seal, VerificationKeyBytes};
 
-mod crypto;
 #[cfg(test)]
 mod test;
 mod types;
