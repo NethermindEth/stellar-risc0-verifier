@@ -8,6 +8,8 @@
 use std::{env, fs, path::PathBuf, str::FromStr};
 
 use ark_bn254::{Fq, Fq2, G1Affine, G2Affine};
+use ark_ec::AffineRepr;
+use ark_ff::{BigInteger, PrimeField};
 use build_utils::{Sha256Digest, hash_g1_point, hash_g2_point, tagged_iter, tagged_struct};
 use serde::Deserialize;
 
@@ -111,49 +113,13 @@ struct VerifierParameters {
     verification_key: VerificationKeyJson,
 }
 
-fn fq(s: &str) -> String {
-    format!("ark_ff::MontFp!(\"{}\")", s)
-}
+fn compute_vk_digest(vk: &VerificationKey) -> Sha256Digest {
+    let alpha_hash = hash_g1_point(&vk.alpha);
+    let beta_hash = hash_g2_point(&vk.beta);
+    let gamma_hash = hash_g2_point(&vk.gamma);
+    let delta_hash = hash_g2_point(&vk.delta);
 
-fn fq2(x1: &str, x2: &str) -> String {
-    format!("ark_bn254::Fq2::new({}, {})", fq(x1), fq(x2))
-}
-
-fn g1(p: &PointG1Json) -> String {
-    format!(
-        "ark_bn254::G1Affine::new_unchecked({}, {})",
-        fq(&p.x),
-        fq(&p.y)
-    )
-}
-
-fn g2(p: &PointG2Json) -> String {
-    format!(
-        "ark_bn254::G2Affine::new_unchecked({}, {})",
-        fq2(&p.x2, &p.x1),
-        fq2(&p.y2, &p.y1)
-    )
-}
-
-fn compute_vk_digest(vk: &VerificationKeyJson) -> Sha256Digest {
-    let alpha = vk.alpha.to_g1_affine();
-    let beta = vk.beta.to_g2_affine();
-    let gamma = vk.gamma.to_g2_affine();
-    let delta = vk.delta.to_g2_affine();
-
-    let alpha_hash = hash_g1_point(&alpha);
-    let beta_hash = hash_g2_point(&beta);
-    let gamma_hash = hash_g2_point(&gamma);
-    let delta_hash = hash_g2_point(&delta);
-
-    let ic: Vec<Sha256Digest> = vk
-        .ic
-        .iter()
-        .map(|point| {
-            let p = point.to_g1_affine();
-            hash_g1_point(&p)
-        })
-        .collect();
+    let ic: Vec<Sha256Digest> = vk.ic.iter().map(hash_g1_point).collect();
 
     let ic_list = tagged_iter("risc0_groth16.VerifyingKey.IC", ic.into_iter());
 
@@ -210,15 +176,51 @@ fn compute_control_roots(control_root: &str) -> ([u8; 16], [u8; 16]) {
     (control_root_0, control_root_1)
 }
 
+fn fq_to_be_bytes(f: &Fq) -> Vec<u8> {
+    let num = f.into_bigint();
+    num.to_bytes_be()
+}
+
+fn serialize_g1_point(p: &G1Affine) -> [u8; 64] {
+    let mut buf = [0u8; 64];
+
+    let (x, y) = p.xy().unwrap();
+
+    let x_bytes = fq_to_be_bytes(x);
+    let y_bytes = fq_to_be_bytes(y);
+
+    buf[0..32].copy_from_slice(&x_bytes);
+    buf[32..64].copy_from_slice(&y_bytes);
+
+    buf
+}
+
+fn serialize_g2_point(p: &G2Affine) -> [u8; 128] {
+    let mut buf = [0u8; 128];
+
+    let (x, y) = p.xy().unwrap();
+    let x_im = fq_to_be_bytes(&x.c1);
+    let x_re = fq_to_be_bytes(&x.c0);
+    let y_im = fq_to_be_bytes(&y.c1);
+    let y_re = fq_to_be_bytes(&y.c0);
+
+    buf[0..32].copy_from_slice(&x_im);
+    buf[32..64].copy_from_slice(&x_re);
+    buf[64..96].copy_from_slice(&y_im);
+    buf[96..128].copy_from_slice(&y_re);
+
+    buf
+}
+
 fn main() {
     let path = PathBuf::from("parameters.json");
     let data = fs::read_to_string(path).unwrap();
     let params: VerifierParameters = serde_json::from_str(&data).unwrap();
 
-    let vk = &params.verification_key;
+    let vk = params.verification_key.to_verification_key();
 
     // Compute all parameters (this will print intermediate values)
-    let vk_digest = compute_vk_digest(vk);
+    let vk_digest = compute_vk_digest(&vk);
     let selector = compute_selector(&params.control_root, &params.bn254_control_id, vk_digest);
     let (control_root_0, control_root_1) = compute_control_roots(&params.control_root);
     let bn254_control_id: [u8; 32] = hex::decode(params.bn254_control_id.clone())
@@ -258,21 +260,25 @@ fn main() {
     println!("cargo:warning===========================================");
 
     // Generate the VerificationKey IC array
-    let ic: Vec<String> = vk.ic.iter().map(g1).collect();
+    let ic: Vec<String> = vk
+        .ic
+        .iter()
+        .map(|point| format_byte_array::<64>(&serialize_g1_point(point)))
+        .collect();
     let ic = ic.join(", ");
 
     let vk_code = format!(
-        "VerificationKey {{
+        "VerificationKeyBytes {{
     alpha: {},
     beta: {},
     gamma: {},
     delta: {},
     ic: [{}],
 }}",
-        g1(&vk.alpha),
-        g2(&vk.beta),
-        g2(&vk.gamma),
-        g2(&vk.delta),
+        format_byte_array::<64>(&serialize_g1_point(&vk.alpha)),
+        format_byte_array::<128>(&serialize_g2_point(&vk.beta)),
+        format_byte_array::<128>(&serialize_g2_point(&vk.gamma)),
+        format_byte_array::<128>(&serialize_g2_point(&vk.delta)),
         ic
     );
     let selector_code = format_byte_array(&selector);
