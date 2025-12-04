@@ -62,10 +62,10 @@ struct PointG2Json {
 
 impl PointG2Json {
     pub fn to_g2_affine(&self) -> G2Affine {
-        let x_im = Fq::from_str(&self.x1).expect("Invalid field element for G2.x1");
-        let x_re = Fq::from_str(&self.x2).expect("Invalid field element for G2.x2");
-        let y_im = Fq::from_str(&self.y1).expect("Invalid field element for G2.y1");
-        let y_re = Fq::from_str(&self.y2).expect("Invalid field element for G2.y2");
+        let x_im = Fq::from_str(&self.x1).expect("Invalid field element for G2.x_im");
+        let x_re = Fq::from_str(&self.x2).expect("Invalid field element for G2.x_re");
+        let y_im = Fq::from_str(&self.y1).expect("Invalid field element for G2.y_im");
+        let y_re = Fq::from_str(&self.y2).expect("Invalid field element for G2.y_re");
 
         let x = Fq2::new(x_re, x_im);
         let y = Fq2::new(y_re, y_im);
