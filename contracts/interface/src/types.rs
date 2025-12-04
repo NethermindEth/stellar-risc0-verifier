@@ -6,51 +6,17 @@
 //!
 //! ## Type Overview
 //!
-//! - [`ImageId`]: Uniquely identifies a guest program
-//! - [`JournalDigest`]: Hash of the public outputs from execution
-//! - [`Seal`]: The zero-knowledge proof itself
-//! - [`Receipt`]: A receipt attesting to a claim using the RISC Zero proof system.
+//! - [`Receipt`]: Complete proof package with seal and claim
 //! - [`ReceiptClaim`]: Detailed execution claim including state and exit codes
 //!
 //! ## Verification Flow
 //!
 //! 1. The prover executes off-chain, producing a journal (public outputs) and cryptographic proof
-//! 2. A [`Receipt`] is constructed with the [`Seal`] (proof) and a `claim_digest` (hash of the [`ReceiptClaim`])
+//! 2. A [`Receipt`] is constructed with the seal (proof) and a `claim_digest` (hash of the [`ReceiptClaim`])
 //! 3. The receipt is submitted to a Soroban verifier contract for validation
 //! 4. The verifier cryptographically validates that the seal proves the claim
 
 use soroban_sdk::{Bytes, BytesN, Env, bytesn, contracttype};
-
-/// Identifier for a RISC Zero guest program.
-///
-/// This is a 32-byte digest that uniquely identifies the compiled guest program binary.
-/// It serves as the "pre-state digest" in the RISC Zero proof system, ensuring that
-/// the proof corresponds to execution of a specific, known program.
-///
-/// The image ID is deterministically derived from the guest program's ELF binary and
-/// is stable across builds if the program logic remains unchanged.
-pub type ImageId = BytesN<32>;
-
-/// SHA-256 digest of the journal bytes.
-///
-/// The journal contains the public outputs of a guest program's execution. This 32-byte
-/// digest is computed over the raw journal bytes and becomes part of the receipt claim.
-///
-/// # Security Note
-///
-/// The journal digest must be computed correctly using SHA-256. An incorrect digest
-/// will cause verification to fail even if the seal is valid.
-pub type JournalDigest = BytesN<32>;
-
-/// Encoded cryptographic proof (SNARK) as raw bytes.
-///
-/// The seal is a zero-knowledge proof that attests to correct execution of a guest program.
-/// It contains the cryptographic evidence that can be efficiently verified on-chain without
-/// revealing the execution trace or private inputs.
-///
-/// The seal format depends on the proof system used (e.g., Groth16). It is serialized as
-/// raw bytes for storage and transmission in Soroban contracts.
-pub type Seal = Bytes;
 
 /// A receipt attesting to a claim using the RISC Zero proof system.
 ///
@@ -89,7 +55,7 @@ pub type Seal = Bytes;
 #[contracttype]
 pub struct Receipt {
     /// The zero-knowledge proof (SNARK) as raw bytes.
-    pub seal: Seal,
+    pub seal: Bytes,
     /// SHA-256 digest of the [`ReceiptClaim`] struct.
     pub claim_digest: BytesN<32>,
 }
@@ -104,7 +70,7 @@ pub struct Receipt {
 ///
 /// The claim follows RISC Zero's standard structure for zkVM execution:
 ///
-/// - **pre_state_digest**: The [`ImageId`] of the guest program
+/// - **pre_state_digest**: The image id of the guest program
 /// - **post_state_digest**: Final state after execution (fixed constant for successful runs)
 /// - **exit_code**: How the program terminated (system and user codes)
 /// - **input**: Committed input digest (currently unused, set to zero)
@@ -148,6 +114,104 @@ pub struct ReceiptClaim {
     output: BytesN<32>,
 }
 
+/// Exit code indicating how a guest program execution terminated.
+///
+/// The exit code consists of two parts:
+/// - **System code**: Indicates the execution mode (halted, paused, or split)
+/// - **User code**: Application-specific exit code (8 bytes)
+///
+/// For standard successful executions, the system code is [`SystemExitCode::Halted`]
+/// and the user code is zero.
+#[contracttype]
+pub struct ExitCode {
+    /// System-level exit code indicating the execution termination mode.
+    system: SystemExitCode,
+    /// User-defined exit code (8 bytes) set by the guest program.
+    user: BytesN<8>,
+}
+
+/// System-level exit codes for RISC Zero execution.
+///
+/// These codes indicate different execution termination modes.
+///
+/// # Variants
+///
+/// - **Halted**: Normal termination - the program completed successfully
+/// - **Paused**: Execution paused (used for continuations and multi-segment proofs)
+/// - **SystemSplit**: Execution split for parallel proving
+///
+/// # Encoding
+///
+/// These values are encoded as `u32` in the receipt claim digest computation,
+/// shifted left by 24 bits.
+#[contracttype]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[repr(u32)]
+pub enum SystemExitCode {
+    /// Program execution completed successfully.
+    Halted = 0,
+    /// Program execution paused (for continuations).
+    Paused = 1,
+    /// Execution split for parallel proving.
+    SystemSplit = 2,
+}
+
+/// Output of a RISC Zero guest program execution.
+///
+/// The output contains the public results of execution (journal) and any
+/// assumptions (dependencies on other proofs). This structure is hashed
+/// to produce the `output` field in [`ReceiptClaim`].
+///
+/// # Fields
+///
+/// - **journal_digest**: SHA-256 hash of the journal (public outputs)
+/// - **assumptions_digest**: SHA-256 hash of assumptions (zero for unconditional proofs)
+#[contracttype]
+pub struct Output {
+    /// SHA-256 digest of the journal bytes (public outputs from the guest program).
+    journal_digest: BytesN<32>,
+    /// SHA-256 digest of assumptions (dependencies on other receipts).
+    ///
+    /// For unconditional receipts (the common case), this is the zero digest.
+    assumptions_digest: BytesN<32>,
+}
+
+impl Output {
+    /// Computes the SHA-256 digest of this [`Output`] struct.
+    ///
+    /// This digest is used as the `output` field in a [`ReceiptClaim`]. The hashing
+    /// scheme follows RISC Zero's tagged hash specification to prevent cross-protocol attacks.
+    ///
+    /// # Hash Construction
+    ///
+    /// The digest is computed as:
+    /// ```text
+    /// SHA-256(tag_digest || journal_digest || assumptions_digest || length)
+    /// ```
+    ///
+    /// Where:
+    /// - `tag_digest` = SHA-256("risc0.Output")
+    /// - `length` = 0x02 0x00 (2 fields in little-endian u16)
+    ///
+    /// # Returns
+    ///
+    /// A 32-byte SHA-256 digest of the output structure.
+    pub fn digest(&self, env: &Env) -> BytesN<32> {
+        let tag_bytes = Bytes::from_slice(env, b"risc0.Output");
+        let tag_digest = env.crypto().sha256(&tag_bytes);
+
+        let mut data = Bytes::new(env);
+        data.append(&tag_digest.into());
+        data.append(&self.journal_digest.clone().into());
+        data.append(&self.assumptions_digest.clone().into());
+
+        let length_bytes = Bytes::from_array(env, &[0x02, 0x00]);
+        data.append(&length_bytes);
+
+        env.crypto().sha256(&data).into()
+    }
+}
+
 impl ReceiptClaim {
     /// Constructs a standard [`ReceiptClaim`] for a successful guest program execution.
     ///
@@ -168,7 +232,7 @@ impl ReceiptClaim {
     /// # Returns
     ///
     /// A [`ReceiptClaim`] configured for standard successful execution.
-    pub fn new(env: &Env, image_id: ImageId, journal_digest: JournalDigest) -> Self {
+    pub fn new(env: &Env, image_id: BytesN<32>, journal_digest: BytesN<32>) -> Self {
         let output = Output {
             journal_digest,
             assumptions_digest: BytesN::from_array(env, &[0u8; 32]),
@@ -255,104 +319,6 @@ impl ReceiptClaim {
 
         // uint16(4) << 8 - down.length
         let length_bytes = Bytes::from_array(env, &[0x04, 0x00]);
-        data.append(&length_bytes);
-
-        env.crypto().sha256(&data).into()
-    }
-}
-
-/// Exit code indicating how a guest program execution terminated.
-///
-/// The exit code consists of two parts:
-/// - **System code**: Indicates the execution mode (halted, paused, or split)
-/// - **User code**: Application-specific exit code (8 bytes)
-///
-/// For standard successful executions, the system code is [`SystemExitCode::Halted`]
-/// and the user code is zero.
-#[contracttype]
-pub struct ExitCode {
-    /// System-level exit code indicating the execution termination mode.
-    system: SystemExitCode,
-    /// User-defined exit code (8 bytes) set by the guest program.
-    user: BytesN<8>,
-}
-
-/// System-level exit codes for RISC Zero execution.
-///
-/// These codes indicate different execution termination modes.
-///
-/// # Variants
-///
-/// - **Halted**: Normal termination - the program completed successfully
-/// - **Paused**: Execution paused (used for continuations and multi-segment proofs)
-/// - **SystemSplit**: Execution split for parallel proving
-///
-/// # Encoding
-///
-/// These values are encoded as `u32` in the receipt claim digest computation,
-/// shifted left by 24 bits.
-#[contracttype]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[repr(u32)]
-pub enum SystemExitCode {
-    /// Program execution completed successfully.
-    Halted = 0,
-    /// Program execution paused (for continuations).
-    Paused = 1,
-    /// Execution split for parallel proving.
-    SystemSplit = 2,
-}
-
-/// Output of a RISC Zero guest program execution.
-///
-/// The output contains the public results of execution (journal) and any
-/// assumptions (dependencies on other proofs). This structure is hashed
-/// to produce the `output` field in [`ReceiptClaim`].
-///
-/// # Fields
-///
-/// - **journal_digest**: SHA-256 hash of the journal (public outputs)
-/// - **assumptions_digest**: SHA-256 hash of assumptions (zero for unconditional proofs)
-#[contracttype]
-pub struct Output {
-    /// SHA-256 digest of the journal bytes (public outputs from the guest program).
-    journal_digest: JournalDigest,
-    /// SHA-256 digest of assumptions (dependencies on other receipts).
-    ///
-    /// For unconditional receipts (the common case), this is the zero digest.
-    assumptions_digest: BytesN<32>,
-}
-
-impl Output {
-    /// Computes the SHA-256 digest of this [`Output`] struct.
-    ///
-    /// This digest is used as the `output` field in a [`ReceiptClaim`]. The hashing
-    /// scheme follows RISC Zero's tagged hash specification to prevent cross-protocol attacks.
-    ///
-    /// # Hash Construction
-    ///
-    /// The digest is computed as:
-    /// ```text
-    /// SHA-256(tag_digest || journal_digest || assumptions_digest || length)
-    /// ```
-    ///
-    /// Where:
-    /// - `tag_digest` = SHA-256("risc0.Output")
-    /// - `length` = 0x02 0x00 (2 fields in little-endian u16)
-    ///
-    /// # Returns
-    ///
-    /// A 32-byte SHA-256 digest of the output structure.
-    pub fn digest(&self, env: &Env) -> BytesN<32> {
-        let tag_bytes = Bytes::from_slice(env, b"risc0.Output");
-        let tag_digest = env.crypto().sha256(&tag_bytes);
-
-        let mut data = Bytes::new(env);
-        data.append(&tag_digest.into());
-        data.append(&self.journal_digest.clone().into());
-        data.append(&self.assumptions_digest.clone().into());
-
-        let length_bytes = Bytes::from_array(env, &[0x02, 0x00]);
         data.append(&length_bytes);
 
         env.crypto().sha256(&data).into()

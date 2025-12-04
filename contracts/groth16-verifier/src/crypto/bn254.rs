@@ -26,6 +26,8 @@ pub struct G1Affine {
 /// G2 points have coordinates in the extension field Fq2, where each coordinate
 /// is represented as a pair of base field elements. Each component is stored as
 /// a 32-byte big-endian value: `x = x_0 + x_1 * u` and `y = y_0 + y_1 * u`.
+///
+/// Note: x_0 and y_0 are the real parts (c0), x_1 and y_1 are the imaginary parts (c1).
 #[derive(Clone)]
 #[contracttype]
 pub struct G2Affine {
@@ -62,8 +64,8 @@ impl From<&G2Affine> for AG2Affine {
     }
 }
 
-impl From<&Fr> for AFr {
-    fn from(scalar: &Fr) -> Self {
+impl From<Fr> for AFr {
+    fn from(scalar: Fr) -> Self {
         let limbs = bytes_to_limbs(&scalar.value.to_array());
         AFr::from(limbs)
     }
@@ -106,7 +108,7 @@ mod tests {
             value: BytesN::from_array(&env, &bytes),
         };
 
-        let ark_fr: AFr = (&fr).into();
+        let ark_fr: AFr = fr.into();
         assert_eq!(ark_fr, expected);
     }
 

@@ -1,12 +1,35 @@
-#![cfg(test)]
-
-use super::*;
-use soroban_sdk::Env;
+use crate::{RiscZeroGroth16Verifier, RiscZeroGroth16VerifierClient};
+use soroban_sdk::{Bytes, BytesN, Env};
 
 #[test]
-fn test_risczero() {
+fn test_verify_proof() {
     let env = Env::default();
-    let contract_id = env.register(RiscZeroVerifier, ());
+    let contract_id = env.register(RiscZeroGroth16Verifier, ());
+    let client = RiscZeroGroth16VerifierClient::new(&env, &contract_id);
 
-    let _ = RiscZeroVerifierClient::new(&env, &contract_id);
+    let seal = [
+        115, 196, 87, 186, 0, 237, 128, 235, 234, 82, 162, 215, 108, 219, 83, 253, 51, 151, 104,
+        190, 16, 27, 191, 115, 52, 20, 229, 22, 168, 155, 98, 214, 70, 109, 143, 168, 39, 163, 217,
+        215, 117, 155, 119, 189, 172, 46, 218, 8, 164, 36, 138, 163, 47, 66, 185, 51, 132, 186,
+        120, 68, 221, 173, 16, 91, 83, 154, 236, 240, 16, 135, 147, 199, 205, 147, 71, 212, 179,
+        74, 227, 197, 227, 148, 79, 255, 80, 116, 63, 60, 170, 174, 73, 33, 155, 190, 178, 211, 40,
+        104, 86, 133, 10, 5, 96, 15, 143, 195, 135, 173, 205, 13, 185, 87, 103, 138, 0, 115, 115,
+        112, 161, 19, 129, 254, 146, 216, 198, 153, 50, 139, 200, 104, 181, 15, 38, 239, 108, 112,
+        252, 67, 176, 221, 131, 101, 167, 44, 11, 201, 135, 216, 18, 128, 33, 146, 39, 28, 36, 140,
+        236, 249, 13, 70, 58, 47, 111, 147, 24, 26, 248, 151, 128, 30, 5, 148, 41, 172, 252, 33,
+        245, 34, 165, 60, 97, 133, 128, 111, 105, 241, 23, 184, 109, 191, 86, 40, 187, 198, 73,
+        117, 2, 109, 28, 132, 149, 6, 243, 7, 121, 100, 208, 124, 26, 204, 213, 137, 61, 33, 83,
+        93, 40, 164, 222, 86, 35, 238, 99, 177, 16, 168, 241, 210, 8, 57, 248, 143, 79, 105, 86,
+        248, 56, 157, 41, 90, 192, 78, 112, 102, 135, 217, 204, 56, 22, 57, 168, 230, 57, 33, 30,
+        155, 70, 128, 49, 27,
+    ];
+    let seal = Bytes::from_slice(&env, &seal);
+
+    let image_id_hex =
+        hex::decode("a77e54910c792ddc3f14878f3f1360af96612408d69074e87389a215f57595b9").unwrap();
+    let image_id = BytesN::from_array(&env, &image_id_hex.try_into().unwrap());
+
+    let journal_hex = hex::decode("01000078").unwrap();
+    let journal_digest = env.crypto().sha256(&Bytes::from_slice(&env, &journal_hex));
+    client.verify(&seal, &image_id, &journal_digest.into());
 }
