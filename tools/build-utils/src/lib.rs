@@ -34,6 +34,7 @@
 //! let struct_hash = tagged_struct("MyStruct", &[field1, field2]);
 //! ```
 
+use ark_bn254::{Fq, G1Affine, G2Affine};
 use ark_ec::AffineRepr;
 use ark_serialize::CanonicalSerialize;
 use sha2::{Digest, Sha256};
@@ -44,17 +45,35 @@ const DIGEST_SIZE: usize = 32;
 /// A 32-byte SHA-256 digest.
 pub type Sha256Digest = [u8; DIGEST_SIZE];
 
-/// Hashes an elliptic curve point using SHA-256.
-///
-/// # Panics
-///
-/// Panics if the point cannot be serialized or if it has no xy coordinates
-pub fn hash_point(p: &impl AffineRepr) -> Sha256Digest {
-    let mut buffer = Vec::new();
+/// Convert an Fq field element to big-endian bytes (Solidity format)
+fn fq_to_be_bytes(f: &Fq) -> [u8; 32] {
+    let mut buffer = [0u8; 32];
+    f.serialize_uncompressed(buffer.as_mut_slice()).unwrap();
+    buffer.reverse(); // arkworks uses little-endian, we need big-endian
+    buffer
+}
+
+/// Hash a G1 point (Fq coordinates)
+pub fn hash_g1_point(p: &G1Affine) -> Sha256Digest {
     let (x, y) = p.xy().unwrap();
-    x.serialize_uncompressed(&mut buffer).unwrap();
-    y.serialize_uncompressed(&mut buffer).unwrap();
-    buffer.reverse();
+    let mut buffer = Vec::with_capacity(64);
+    buffer.extend_from_slice(&fq_to_be_bytes(x));
+    buffer.extend_from_slice(&fq_to_be_bytes(y));
+    Sha256::digest(&buffer).into()
+}
+
+/// Hash a G2 point (Fq2 coordinates, each having c0 and c1 components)
+pub fn hash_g2_point(p: &G2Affine) -> Sha256Digest {
+    let (x, y) = p.xy().unwrap();
+    let mut buffer = Vec::with_capacity(128);
+
+    // For Fq2, we need to serialize c0 and c1 separately
+    // Solidity expects: x.c1, x.c0, y.c1, y.c0 (all big-endian)
+    buffer.extend_from_slice(&fq_to_be_bytes(&x.c1));
+    buffer.extend_from_slice(&fq_to_be_bytes(&x.c0));
+    buffer.extend_from_slice(&fq_to_be_bytes(&y.c1));
+    buffer.extend_from_slice(&fq_to_be_bytes(&y.c0));
+
     Sha256::digest(&buffer).into()
 }
 
