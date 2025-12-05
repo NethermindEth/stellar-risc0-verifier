@@ -3,16 +3,13 @@
 // Use Soroban's allocator for heap allocations
 extern crate alloc;
 
-use ark_bn254::{Bn254, Fq12, Fr as AFr};
-use ark_ec::{AffineRepr, CurveGroup, pairing::Pairing};
-use ark_ff::Field;
 use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface};
-use soroban_sdk::{Bytes, BytesN, Env, String, Vec, contract, contracterror, contractimpl};
+use soroban_sdk::{
+    Bytes, BytesN, Env, String, Vec, contract, contracterror, contractimpl, crypto::bn254::Fr, vec,
+};
 
-use crypto::bn254::Fr;
-use types::{ArkProof, Groth16Proof, Groth16Seal, VerificationKey};
+use types::{Groth16Proof, Groth16Seal, VerificationKeyBytes};
 
-mod crypto;
 #[cfg(test)]
 mod test;
 mod types;
@@ -42,7 +39,7 @@ impl RiscZeroGroth16Verifier {
     /// Groth16 verification key for the RISC Zero system.
     ///
     /// This verification key is generated at build time from `vk.json`
-    const VERIFICATION_KEY: VerificationKey =
+    const VERIFICATION_KEY: VerificationKeyBytes =
         include!(concat!(env!("OUT_DIR"), "/verification_key.rs"));
 
     const VERSION: &'static str = include!(concat!(env!("OUT_DIR"), "/version.rs"));
@@ -76,34 +73,31 @@ impl RiscZeroGroth16Verifier {
     /// - `proof`: The Groth16 proof containing points A, B, and C
     /// - `pub_signals`: Vector of public input signals (scalar field elements)
     ///
-    pub fn verify_proof(proof: Groth16Proof, pub_signals: Vec<Fr>) -> Result<bool, Groth16Error> {
-        let vk = Self::VERIFICATION_KEY;
+    pub fn verify_proof(
+        env: Env,
+        proof: Groth16Proof,
+        pub_signals: Vec<Fr>,
+    ) -> Result<bool, Groth16Error> {
+        let vk = Self::VERIFICATION_KEY.verification_key(&env);
+        let bn = env.crypto().bn254();
 
         if pub_signals.len() + 1 != vk.ic.len() as u32 {
             return Err(Groth16Error::MalformedPublicInputs);
         }
 
-        // Parse the proof to ArkProof
-        let proof: ArkProof = proof.into();
-
-        // Work in projective coordinates for efficiency
-        let mut vk_x = vk.ic[0].into_group();
+        let mut vk_x = vk.ic.first().unwrap().clone();
         for (s, v) in pub_signals.iter().zip(vk.ic.iter().skip(1)) {
-            let scalar: AFr = s.into();
-            vk_x += *v * scalar;
+            let prod = bn.g1_mul(v, &s);
+            vk_x = bn.g1_add(&vk_x, &prod);
         }
 
         // Compute the pairing check:
         // e(-A, B) * e(alpha, beta) * e(vk_x, gamma) * e(C, delta) == 1
         let neg_a = -proof.a;
-        let g1_points = [neg_a, vk.alpha, vk_x.into_affine(), proof.c];
-        let g2_points = [proof.b, vk.beta, vk.gamma, vk.delta];
+        let g1_points = vec![&env, neg_a, vk.alpha, vk_x, proof.c];
+        let g2_points = vec![&env, proof.b, vk.beta, vk.gamma, vk.delta];
 
-        // Two-step pairing: Miller loop + final exponentiation
-        let mlo = Bn254::multi_miller_loop(g1_points, g2_points);
-        let result = Bn254::final_exponentiation(mlo).ok_or(Groth16Error::InvalidProof)?;
-
-        Ok(result.0 == Fq12::ONE)
+        Ok(bn.pairing_check(g1_points, g2_points))
     }
 }
 
@@ -146,20 +140,14 @@ impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
 
         // Create public signals as Fr field elements
         let mut pub_signals = Vec::new(&env);
-        pub_signals.push_back(Fr {
-            value: control_root_0,
-        });
-        pub_signals.push_back(Fr {
-            value: control_root_1,
-        });
-        pub_signals.push_back(Fr { value: claim_0 });
-        pub_signals.push_back(Fr { value: claim_1 });
-        pub_signals.push_back(Fr {
-            value: bn254_control_id,
-        });
+        pub_signals.push_back(Fr::from_bytes(control_root_0));
+        pub_signals.push_back(Fr::from_bytes(control_root_1));
+        pub_signals.push_back(Fr::from_bytes(claim_0));
+        pub_signals.push_back(Fr::from_bytes(claim_1));
+        pub_signals.push_back(Fr::from_bytes(bn254_control_id));
 
         // Verify the proof and panic if invalid
-        match Self::verify_proof(seal.proof, pub_signals) {
+        match Self::verify_proof(env, seal.proof, pub_signals) {
             Ok(true) => {} // Proof is valid
             Ok(false) => panic!("Proof verification failed"),
             Err(e) => panic!("Proof verification error: {:?}", e),
