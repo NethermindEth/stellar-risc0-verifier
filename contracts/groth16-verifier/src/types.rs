@@ -23,6 +23,13 @@ pub struct VerificationKey {
     pub ic: [G1Affine; 6],
 }
 
+/// Byte-oriented version of the verification key generated at build time.
+///
+/// Soroban's BN254 affine types are not `const` constructible, so we emit the
+/// key as raw byte arrays in `build.rs` and reconstruct the affine points at
+/// runtime inside the contract via [`verification_key`]. This keeps the key
+/// embeddable with `include!` while still avoiding any serialization support on
+/// the `VerificationKey` itself.
 pub struct VerificationKeyBytes {
     pub alpha: [u8; G1_SIZE],
     pub beta: [u8; G2_SIZE],
