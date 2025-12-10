@@ -12,7 +12,7 @@ license = "Apache-2.0"
 ark-bn254 = "=0.4.0"
 ark-ec = "=0.4.2"
 ark-ff = "=0.4.2"
-soroban-sdk = "23.0.2"
+soroban-sdk = { git = "https://github.com/NethermindEth/rs-soroban-sdk", branch = "feature/bn254-neg-trait" }
 ark-serialize = "=0.4.2"
 hex = "0.4.3"
 serde = "1.0.228"
