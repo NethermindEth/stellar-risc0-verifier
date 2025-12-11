@@ -1,8 +1,5 @@
 #![no_std]
 
-// Use Soroban's allocator for heap allocations
-extern crate alloc;
-
 use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface};
 use soroban_sdk::{
     Bytes, BytesN, Env, String, Vec, contract, contracterror, contractimpl, crypto::bn254::Fr, vec,
