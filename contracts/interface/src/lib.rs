@@ -49,14 +49,16 @@ pub trait RiscZeroVerifierInterface {
     ///
     /// # Returns
     ///
-    /// This method returns nothing on success (unit type).
+    /// Returns `Ok(())` if the verification succeeds, proving that the seal is a valid
+    /// cryptographic proof for the given image ID and journal.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if any of the following occur:
-    /// - The seal is malformed or cannot be decoded
-    /// - The cryptographic verification fails
-    /// - The proof does not correspond to the specified image ID and journal
+    /// Returns an error if any of the following occur:
+    /// - [`VerifierError::MalformedSeal`] - The seal is malformed or cannot be decoded
+    /// - [`VerifierError::InvalidSelector`] - The selector in the seal doesn't match this verifier
+    /// - [`VerifierError::MalformedPublicInputs`] - The public inputs are invalid
+    /// - [`VerifierError::InvalidProof`] - The cryptographic verification fails
     ///
     /// # Examples
     ///
@@ -67,9 +69,14 @@ pub trait RiscZeroVerifierInterface {
     ///     seal,           // The proof bytes
     ///     image_id,       // Program identifier
     ///     journal_digest, // Hash of public outputs
-    /// );
+    /// )?; // Returns Result<(), VerifierError>
     /// ```
-    fn verify(env: Env, seal: Bytes, image_id: BytesN<32>, journal: BytesN<32>);
+    fn verify(
+        env: Env,
+        seal: Bytes,
+        image_id: BytesN<32>,
+        journal: BytesN<32>,
+    ) -> Result<(), VerifierError>;
 
     /// Verifies a full RISC Zero receipt with arbitrary claim parameters.
     ///
@@ -105,15 +112,16 @@ pub trait RiscZeroVerifierInterface {
     ///
     /// # Returns
     ///
-    /// This method returns nothing on success (unit type).
+    /// Returns `Ok(())` if the verification succeeds, proving that the seal is a valid
+    /// cryptographic proof for the claim digest in the receipt.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if any of the following occur:
-    /// - The receipt is malformed
-    /// - The seal cannot be decoded
-    /// - The cryptographic verification fails
-    /// - The claim digest doesn't match the proven claim
+    /// Returns an error if any of the following occur:
+    /// - [`VerifierError::MalformedSeal`] - The seal is malformed or cannot be decoded
+    /// - [`VerifierError::InvalidSelector`] - The selector in the seal doesn't match this verifier
+    /// - [`VerifierError::MalformedPublicInputs`] - The public inputs are invalid
+    /// - [`VerifierError::InvalidProof`] - The cryptographic verification fails or the claim digest doesn't match
     ///
     /// # Examples
     ///
@@ -128,7 +136,7 @@ pub trait RiscZeroVerifierInterface {
     /// };
     ///
     /// // Verify the full receipt
-    /// verifier.verify_integrity(&env, receipt);
+    /// verifier.verify_integrity(&env, receipt)?; // Returns Result<(), VerifierError>
     /// ```
-    fn verify_integrity(env: Env, receipt: Receipt);
+    fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError>;
 }

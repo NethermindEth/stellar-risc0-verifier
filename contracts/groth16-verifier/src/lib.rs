@@ -89,16 +89,21 @@ impl RiscZeroGroth16Verifier {
 impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
     type Proof = Groth16Proof;
 
-    fn verify(env: Env, seal: Bytes, image_id: BytesN<32>, journal: BytesN<32>) {
+    fn verify(
+        env: Env,
+        seal: Bytes,
+        image_id: BytesN<32>,
+        journal: BytesN<32>,
+    ) -> Result<(), VerifierError> {
         let claim = ReceiptClaim::new(&env, image_id, journal);
         let receipt = Receipt {
             seal,
             claim_digest: claim.digest(&env),
         };
-        Self::verify_integrity(env, receipt);
+        Self::verify_integrity(env, receipt)
     }
 
-    fn verify_integrity(env: Env, receipt: Receipt) {
+    fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError> {
         let seal = Groth16Seal::try_from(receipt.seal).unwrap();
 
         if seal.selector != Self::SELECTOR {
@@ -131,10 +136,9 @@ impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
         pub_signals.push_back(Fr::from_bytes(bn254_control_id));
 
         // Verify the proof and panic if invalid
-        match Self::verify_proof(env, seal.proof, pub_signals) {
-            Ok(true) => {} // Proof is valid
-            Ok(false) => panic!("Proof verification failed"),
-            Err(e) => panic!("Proof verification error: {:?}", e),
+        match Self::verify_proof(env, seal.proof, pub_signals)? {
+            true => Ok(()),
+            false => Err(VerifierError::InvalidProof),
         }
     }
 }
