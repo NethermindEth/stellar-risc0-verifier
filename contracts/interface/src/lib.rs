@@ -13,7 +13,7 @@ use soroban_sdk::{Bytes, BytesN, Env, contractclient};
 // Re-export types at crate root for convenience
 pub use types::{ExitCode, Output, Receipt, ReceiptClaim, SystemExitCode};
 
-pub mod types;
+mod types;
 
 /// Verifier interface for RISC Zero zkVM receipts of execution.
 ///
