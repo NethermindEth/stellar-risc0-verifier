@@ -107,7 +107,7 @@ impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
         let seal = Groth16Seal::try_from(receipt.seal).unwrap();
 
         if seal.selector != Self::SELECTOR {
-            panic!("bad selector"); // TODO: Add missing error
+            return Err(VerifierError::InvalidSelector);
         }
 
         let (claim_0, claim_1) = split_digest(&env, receipt.claim_digest);

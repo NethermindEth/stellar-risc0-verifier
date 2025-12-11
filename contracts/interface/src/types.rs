@@ -29,6 +29,8 @@ pub enum VerifierError {
     MalformedPublicInputs = 1,
     /// The seal data is malformed or has incorrect byte length.
     MalformedSeal = 2,
+    /// The selector in the seal does not match this verifier.
+    InvalidSelector = 3,
 }
 
 /// A receipt attesting to a claim using the RISC Zero proof system.
