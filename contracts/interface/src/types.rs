@@ -16,7 +16,20 @@
 //! 3. The receipt is submitted to a Soroban verifier contract for validation
 //! 4. The verifier cryptographically validates that the seal proves the claim
 
-use soroban_sdk::{Bytes, BytesN, Env, bytesn, contracttype};
+use soroban_sdk::{Bytes, BytesN, Env, bytesn, contracterror, contracttype};
+
+/// Errors that can occur during Groth16 proof verification.
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum VerifierError {
+    /// The proof verification failed (pairing check did not equal identity).
+    InvalidProof = 0,
+    /// The number of public inputs does not match the verification key.
+    MalformedPublicInputs = 1,
+    /// The seal data is malformed or has incorrect byte length.
+    MalformedSeal = 2,
+}
 
 /// A receipt attesting to a claim using the RISC Zero proof system.
 ///

@@ -1,8 +1,8 @@
 #![no_std]
 
-use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface};
+use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError};
 use soroban_sdk::{
-    Bytes, BytesN, Env, String, Vec, contract, contracterror, contractimpl, crypto::bn254::Fr, vec,
+    Bytes, BytesN, Env, String, Vec, contract, contractimpl, crypto::bn254::Fr, vec,
 };
 
 use types::{Groth16Proof, Groth16Seal, VerificationKeyBytes};
@@ -10,19 +10,6 @@ use types::{Groth16Proof, Groth16Seal, VerificationKeyBytes};
 #[cfg(test)]
 mod test;
 mod types;
-
-/// Errors that can occur during Groth16 proof verification.
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[repr(u32)]
-pub enum Groth16Error {
-    /// The proof verification failed (pairing check did not equal identity).
-    InvalidProof = 0,
-    /// The number of public inputs does not match the verification key.
-    MalformedPublicInputs = 1,
-    /// The seal data is malformed or has incorrect byte length.
-    MalformedSeal = 2,
-}
 
 /// Groth16 verifier contract for RISC Zero receipts of execution.
 ///
@@ -74,12 +61,12 @@ impl RiscZeroGroth16Verifier {
         env: Env,
         proof: Groth16Proof,
         pub_signals: Vec<Fr>,
-    ) -> Result<bool, Groth16Error> {
+    ) -> Result<bool, VerifierError> {
         let vk = Self::VERIFICATION_KEY.verification_key(&env);
         let bn = env.crypto().bn254();
 
         if pub_signals.len() + 1 != vk.ic.len() as u32 {
-            return Err(Groth16Error::MalformedPublicInputs);
+            return Err(VerifierError::MalformedPublicInputs);
         }
 
         let mut vk_x = vk.ic.first().unwrap().clone();

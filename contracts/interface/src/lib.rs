@@ -11,7 +11,7 @@
 use soroban_sdk::{Bytes, BytesN, Env, contractclient};
 
 // Re-export types at crate root for convenience
-pub use types::{ExitCode, Output, Receipt, ReceiptClaim, SystemExitCode};
+pub use types::{ExitCode, Output, Receipt, ReceiptClaim, SystemExitCode, VerifierError};
 
 mod types;
 

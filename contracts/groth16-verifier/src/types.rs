@@ -5,7 +5,7 @@ use soroban_sdk::{
     crypto::bn254::{G1Affine, G2Affine},
 };
 
-use crate::Groth16Error;
+use risc0_interface::VerifierError;
 
 /// Groth16 verification key for BN254 curve.
 ///
@@ -76,17 +76,17 @@ const PROOF_SIZE: usize = G1_SIZE + G2_SIZE + G1_SIZE; // a, b, c
 const SEAL_SIZE: usize = SELECTOR_SIZE + PROOF_SIZE;
 
 impl TryFrom<Bytes> for Groth16Seal {
-    type Error = Groth16Error;
+    type Error = VerifierError;
 
     fn try_from(value: Bytes) -> Result<Self, Self::Error> {
         if value.len() != SEAL_SIZE as u32 {
-            return Err(Groth16Error::MalformedSeal);
+            return Err(VerifierError::MalformedSeal);
         }
 
         let selector = value
             .slice(0..SELECTOR_SIZE as u32)
             .try_into()
-            .map_err(|_| Groth16Error::MalformedSeal)?;
+            .map_err(|_| VerifierError::MalformedSeal)?;
 
         let proof = value.slice(SELECTOR_SIZE as u32..).try_into()?;
 
@@ -95,11 +95,11 @@ impl TryFrom<Bytes> for Groth16Seal {
 }
 
 impl TryFrom<Bytes> for Groth16Proof {
-    type Error = Groth16Error;
+    type Error = VerifierError;
 
     fn try_from(value: Bytes) -> Result<Self, Self::Error> {
         if value.len() != PROOF_SIZE as u32 {
-            return Err(Groth16Error::MalformedSeal);
+            return Err(VerifierError::MalformedSeal);
         }
 
         let a = G1Affine::from_bytes(value.slice(0..64).try_into().unwrap());
