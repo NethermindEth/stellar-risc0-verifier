@@ -63,6 +63,8 @@ pub struct Groth16Proof {
     pub c: G1Affine,
 }
 
+#[derive(Clone)]
+#[contracttype]
 pub struct Groth16Seal {
     pub selector: BytesN<4>,
     pub proof: Groth16Proof,
