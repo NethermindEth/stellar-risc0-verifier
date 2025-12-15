@@ -16,7 +16,7 @@
 //! 3. The receipt is submitted to a Soroban verifier contract for validation
 //! 4. The verifier cryptographically validates that the seal proves the claim
 
-use soroban_sdk::{Bytes, BytesN, Env, bytesn, contracterror, contracttype};
+use soroban_sdk::{Bytes, BytesN, Env, contracterror, contracttype};
 
 /// Errors that can occur during Groth16 proof verification.
 #[contracterror]
@@ -192,6 +192,14 @@ pub struct Output {
 }
 
 impl Output {
+    /// Pre-computed SHA-256("risc0.Output") tag digest.
+    /// This constant avoids computing the tag hash on every call.
+    const TAG_DIGEST: [u8; 32] = [
+        0x77, 0xea, 0xfe, 0xb3, 0x66, 0xa7, 0x8b, 0x47, 0x74, 0x7d, 0xe0, 0xd7, 0xbb, 0x17, 0x62,
+        0x84, 0x08, 0x5f, 0xf5, 0x56, 0x48, 0x87, 0x00, 0x9a, 0x5b, 0xe6, 0x3d, 0xa3, 0x2d, 0x35,
+        0x59, 0xd4,
+    ];
+
     /// Computes the SHA-256 digest of this [`Output`] struct.
     ///
     /// This digest is used as the `output` field in a [`ReceiptClaim`]. The hashing
@@ -212,22 +220,34 @@ impl Output {
     ///
     /// A 32-byte SHA-256 digest of the output structure.
     pub fn digest(&self, env: &Env) -> BytesN<32> {
-        let tag_bytes = Bytes::from_slice(env, b"risc0.Output");
-        let tag_digest = env.crypto().sha256(&tag_bytes);
-
         let mut data = Bytes::new(env);
-        data.append(&tag_digest.into());
+        data.append(&Bytes::from_array(env, &Self::TAG_DIGEST));
         data.append(&self.journal_digest.clone().into());
         data.append(&self.assumptions_digest.clone().into());
-
-        let length_bytes = Bytes::from_array(env, &[0x02, 0x00]);
-        data.append(&length_bytes);
+        data.append(&Bytes::from_array(env, &[0x02, 0x00]));
 
         env.crypto().sha256(&data).into()
     }
 }
 
 impl ReceiptClaim {
+    /// Pre-computed SHA-256("risc0.ReceiptClaim") tag digest.
+    /// This constant avoids computing the tag hash on every call.
+    const TAG_DIGEST: [u8; 32] = [
+        0xcb, 0x1f, 0xef, 0xcd, 0x1f, 0x2d, 0x9a, 0x64, 0x97, 0x5c, 0xbb, 0xbf, 0x6e, 0x16, 0x1e,
+        0x29, 0x14, 0x43, 0x4b, 0x0c, 0xbb, 0x99, 0x60, 0xb8, 0x4d, 0xf5, 0xd7, 0x17, 0xe8, 0x6b,
+        0x48, 0xaf,
+    ];
+
+    /// Fixed post-state digest for a halted execution.
+    ///
+    /// This is a protocol constant used in standard successful receipt claims.
+    const POST_STATE_DIGEST_HALTED: [u8; 32] = [
+        0xa3, 0xac, 0xc2, 0x71, 0x17, 0x41, 0x89, 0x96, 0x34, 0x0b, 0x84, 0xe5, 0xa9, 0x0f, 0x3e,
+        0xf4, 0xc4, 0x9d, 0x22, 0xc7, 0x9e, 0x44, 0xaa, 0xd8, 0x22, 0xec, 0x9c, 0x31, 0x3e, 0x1e,
+        0xb8, 0xe2,
+    ];
+
     /// Constructs a standard [`ReceiptClaim`] for a successful guest program execution.
     ///
     /// This convenience method creates a claim with standard assumptions suitable for
@@ -252,10 +272,7 @@ impl ReceiptClaim {
             journal_digest,
             assumptions_digest: BytesN::from_array(env, &[0u8; 32]),
         };
-        let post_state: BytesN<32> = bytesn!(
-            env,
-            0xa3acc27117418996340b84e5a90f3ef4c49d22c79e44aad822ec9c313e1eb8e2
-        );
+        let post_state: BytesN<32> = BytesN::from_array(env, &Self::POST_STATE_DIGEST_HALTED);
 
         Self {
             pre_state_digest: image_id,
@@ -309,11 +326,8 @@ impl ReceiptClaim {
     /// This digest must be computed correctly for verification to be secure. Always use
     /// this method rather than implementing custom hashing.
     pub fn digest(&self, env: &Env) -> BytesN<32> {
-        let tag_bytes = Bytes::from_slice(env, b"risc0.ReceiptClaim");
-        let tag_digest = env.crypto().sha256(&tag_bytes);
-
         let mut data = Bytes::new(env);
-        data.append(&tag_digest.into());
+        data.append(&Bytes::from_array(env, &Self::TAG_DIGEST));
         data.append(&self.input.clone().into());
         data.append(&self.pre_state_digest.clone().into());
         data.append(&self.post_state_digest.clone().into());
