@@ -69,7 +69,7 @@ impl RiscZeroGroth16Verifier {
             return Err(VerifierError::MalformedPublicInputs);
         }
 
-        let mut vk_x = vk.ic.first().unwrap().clone();
+        let mut vk_x = vk.ic[0].clone();
         for (s, v) in pub_signals.iter().zip(vk.ic.iter().skip(1)) {
             let prod = bn.g1_mul(v, &s);
             vk_x = bn.g1_add(&vk_x, &prod);

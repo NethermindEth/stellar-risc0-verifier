@@ -333,22 +333,29 @@ impl ReceiptClaim {
         data.append(&self.post_state_digest.clone().into());
         data.append(&self.output.clone().into());
 
-        // uint32(claim.exitCode.system) << 24
-        let system_exit_code = (self.exit_code.system as u32) << 24;
-        let system_bytes = Bytes::from_array(env, &system_exit_code.to_be_bytes());
-        data.append(&system_bytes);
+        // System exit code encoding: (value as u32) << 24, then to_be_bytes()
+        //
+        // | Value           | as u32 | << 24        | to_be_bytes()             |
+        // |-----------------|--------|--------------|---------------------------|
+        // | Halted = 0      | 0      | 0x00000000   | [0x00, 0x00, 0x00, 0x00]  |
+        // | Paused = 1      | 1      | 0x01000000   | [0x01, 0x00, 0x00, 0x00]  |
+        // | SystemSplit = 2 | 2      | 0x02000000   | [0x02, 0x00, 0x00, 0x00]  |
+        //
+        // Shifting left by 24 bits moves the value into the MSB of the u32.
+        // to_be_bytes() outputs the MSB first, so the result is [value, 0, 0, 0].
+        // Since all variants fit in one byte, we write this directly.
+        data.append(&Bytes::from_array(
+            env,
+            &[self.exit_code.system as u8, 0, 0, 0],
+        ));
 
-        // uint32(claim.exitCode.user) << 24 - user is BytesN<8>, take first 4 bytes as u32
+        // User exit code: first 4 bytes interpreted as BE u32, then << 24
+        // This effectively keeps only the 4th byte (index 3) at position 0
         let user_bytes = self.exit_code.user.to_array();
-        let user_u32 =
-            u32::from_be_bytes([user_bytes[0], user_bytes[1], user_bytes[2], user_bytes[3]]);
-        let user_shifted = user_u32 << 24;
-        let user_shifted_bytes = Bytes::from_array(env, &user_shifted.to_be_bytes());
-        data.append(&user_shifted_bytes);
+        data.append(&Bytes::from_array(env, &[user_bytes[3], 0, 0, 0]));
 
-        // uint16(4) << 8 - down.length
-        let length_bytes = Bytes::from_array(env, &[0x04, 0x00]);
-        data.append(&length_bytes);
+        // Length: uint16(4) << 8 encoded as 2 bytes
+        data.append(&Bytes::from_array(env, &[0x04, 0x00]));
 
         env.crypto().sha256(&data).into()
     }

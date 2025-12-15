@@ -7,6 +7,13 @@ use soroban_sdk::{
 
 use risc0_interface::VerifierError;
 
+const SELECTOR_SIZE: usize = 4;
+const FIELD_ELEMENT_SIZE: usize = 32;
+const G1_SIZE: usize = FIELD_ELEMENT_SIZE * 2; // x, y
+const G2_SIZE: usize = FIELD_ELEMENT_SIZE * 4; // x_0, x_1, y_0, y_1
+const PROOF_SIZE: usize = G1_SIZE + G2_SIZE + G1_SIZE; // a, b, c
+const SEAL_SIZE: usize = SELECTOR_SIZE + PROOF_SIZE;
+
 /// Groth16 verification key for BN254 curve.
 ///
 /// Contains the public parameters needed to verify a Groth16 proof:
@@ -70,13 +77,6 @@ pub struct Groth16Seal {
     pub proof: Groth16Proof,
 }
 
-const SELECTOR_SIZE: usize = 4;
-const FIELD_ELEMENT_SIZE: usize = 32;
-const G1_SIZE: usize = FIELD_ELEMENT_SIZE * 2; // x, y
-const G2_SIZE: usize = FIELD_ELEMENT_SIZE * 4; // x_0, x_1, y_0, y_1
-const PROOF_SIZE: usize = G1_SIZE + G2_SIZE + G1_SIZE; // a, b, c
-const SEAL_SIZE: usize = SELECTOR_SIZE + PROOF_SIZE;
-
 impl TryFrom<Bytes> for Groth16Seal {
     type Error = VerifierError;
 
@@ -104,9 +104,24 @@ impl TryFrom<Bytes> for Groth16Proof {
             return Err(VerifierError::MalformedSeal);
         }
 
-        let a = G1Affine::from_bytes(value.slice(0..64).try_into().unwrap());
-        let b = G2Affine::from_bytes(value.slice(64..192).try_into().unwrap());
-        let c = G1Affine::from_bytes(value.slice(192..).try_into().unwrap());
+        let a = G1Affine::from_bytes(
+            value
+                .slice(0..G1_SIZE as u32)
+                .try_into()
+                .map_err(|_| VerifierError::MalformedSeal)?,
+        );
+        let b = G2Affine::from_bytes(
+            value
+                .slice(G1_SIZE as u32..G1_SIZE as u32 + G2_SIZE as u32)
+                .try_into()
+                .map_err(|_| VerifierError::MalformedSeal)?,
+        );
+        let c = G1Affine::from_bytes(
+            value
+                .slice(G1_SIZE as u32 + G2_SIZE as u32..)
+                .try_into()
+                .map_err(|_| VerifierError::MalformedSeal)?,
+        );
 
         Ok(Self { a, b, c })
     }
