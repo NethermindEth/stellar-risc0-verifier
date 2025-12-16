@@ -33,13 +33,13 @@ impl RiscZeroGroth16Verifier {
     const SELECTOR: [u8; 4] = include!(concat!(env!("OUT_DIR"), "/selector.rs"));
 
     /// Returns the verifier's selector
-    pub fn selector() -> BytesN<4> {
-        BytesN::from_array(&Env::default(), &Self::SELECTOR)
+    pub fn selector(env: Env) -> BytesN<4> {
+        BytesN::from_array(&env, &Self::SELECTOR)
     }
 
     /// Returns the RISC Zero verifier version
-    pub fn version() -> String {
-        String::from_str(&Env::default(), Self::VERSION)
+    pub fn version(env: Env) -> String {
+        String::from_str(&env, Self::VERSION)
     }
 
     /// Verifies a Groth16 proof with the given public signals.
