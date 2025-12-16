@@ -14,6 +14,11 @@ enum DataKey {
     Verifier(BytesN<4>),
 }
 
+#[contracttype]
+enum VerifierEntry {
+    Active(Address),
+    Tombstone,
+}
 #[contract]
 pub struct RiscZeroVerifierRouter;
 
