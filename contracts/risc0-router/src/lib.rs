@@ -72,3 +72,8 @@ impl RiscZeroVerifierInterface for RiscZeroVerifierRouter {
         todo!()
     }
 }
+
+fn require_admin(env: &Env) {
+    let admin: Address = env.storage().persistent().get(&DataKey::Admin).unwrap();
+    admin.require_auth();
+}
