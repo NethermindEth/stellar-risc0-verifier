@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{Address, Bytes, BytesN, Env, contract, contractimpl, contracttype};
+use soroban_sdk::{Bytes, BytesN, Env, contract, contracterror, contractimpl, contracttype};
 
 use risc0_interface::{Receipt, RiscZeroVerifierInterface};
 
@@ -19,6 +19,18 @@ enum VerifierEntry {
     Active(Address),
     Tombstone,
 }
+
+// FIXME: Remove when PR#11 is merged
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum VerifierError {
+    AlreadyInitialized = 4,
+    SelectorRemoved = 5,
+    SelectorInUse = 6,
+    SelectorUnknown = 7,
+}
+
 #[contract]
 pub struct RiscZeroVerifierRouter;
 
