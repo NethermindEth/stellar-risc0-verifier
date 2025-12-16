@@ -1,0 +1,175 @@
+name: Gas Benchmark
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  benchmark:
+    name: Gas Consumption Benchmark
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bench-
+
+      - name: Run gas benchmarks
+        id: benchmark
+        run: |
+          # Run benchmarks and capture output
+          OUTPUT=$(cargo test --manifest-path contracts/groth16-verifier/Cargo.toml bench_ -- --nocapture 2>&1)
+          echo "$OUTPUT"
+
+          # Parse benchmark results from `Budget::print()` output.
+          #
+          # The tests print sections like:
+          #   "========== BENCHMARK: verify() =========="
+          #   "Cpu limit: ...; used: <N>"
+          #   "Mem limit: ...; used: <N>"
+          #
+          # Extract the `used:` values for each benchmark label.
+          extract_used() {
+            local label="$1"
+            local kind="$2" # "cpu" or "mem"
+            echo "$OUTPUT" | awk -v label="$label" -v kind="$kind" '
+              $0 ~ "BENCHMARK: " label {
+                in_section=1
+              }
+              in_section && kind=="cpu" && $0 ~ /^Cpu limit:/ {
+                line=$0
+                sub(/.*used: /, "", line)
+                sub(/[^0-9].*/, "", line)
+                print line
+                exit
+              }
+              in_section && kind=="mem" && $0 ~ /^Mem limit:/ {
+                line=$0
+                sub(/.*used: /, "", line)
+                sub(/[^0-9].*/, "", line)
+                print line
+                exit
+              }
+              in_section && $0 ~ /^={5,}/ {
+                # Stay in section until we see the next BENCHMARK header; this line is harmless.
+              }
+            '
+          }
+
+          VERIFY_CPU=$(extract_used "verify()" "cpu")
+          VERIFY_MEM=$(extract_used "verify()" "mem")
+          INTEGRITY_CPU=$(extract_used "verify_integrity()" "cpu")
+          INTEGRITY_MEM=$(extract_used "verify_integrity()" "mem")
+          CLAIM_CPU=$(extract_used "ReceiptClaim::digest()" "cpu")
+          CLAIM_MEM=$(extract_used "ReceiptClaim::digest()" "mem")
+
+          # Format numbers with commas for readability
+          format_number() {
+            echo "$1" | sed ':a;s/\B[0-9]\{3\}\>/,&/;ta'
+          }
+
+          VERIFY_CPU_FMT=$(format_number "$VERIFY_CPU")
+          VERIFY_MEM_FMT=$(format_number "$VERIFY_MEM")
+          INTEGRITY_CPU_FMT=$(format_number "$INTEGRITY_CPU")
+          INTEGRITY_MEM_FMT=$(format_number "$INTEGRITY_MEM")
+          CLAIM_CPU_FMT=$(format_number "$CLAIM_CPU")
+          CLAIM_MEM_FMT=$(format_number "$CLAIM_MEM")
+
+          # Write to job summary
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ⛽ Gas Consumption Report
+
+          | Benchmark | CPU Instructions | Memory Bytes |
+          |-----------|------------------|--------------|
+          | \`verify()\` | ${VERIFY_CPU_FMT:-N/A} | ${VERIFY_MEM_FMT:-N/A} |
+          | \`verify_integrity()\` | ${INTEGRITY_CPU_FMT:-N/A} | ${INTEGRITY_MEM_FMT:-N/A} |
+          | \`ReceiptClaim::digest()\` | ${CLAIM_CPU_FMT:-N/A} | ${CLAIM_MEM_FMT:-N/A} |
+
+          > 💡 **Tip**: Lower numbers = less gas = cheaper transactions!
+          EOF
+
+          # Save raw values for PR comment
+          echo "verify_cpu=$VERIFY_CPU_FMT" >> $GITHUB_OUTPUT
+          echo "verify_mem=$VERIFY_MEM_FMT" >> $GITHUB_OUTPUT
+          echo "integrity_cpu=$INTEGRITY_CPU_FMT" >> $GITHUB_OUTPUT
+          echo "integrity_mem=$INTEGRITY_MEM_FMT" >> $GITHUB_OUTPUT
+          echo "claim_cpu=$CLAIM_CPU_FMT" >> $GITHUB_OUTPUT
+          echo "claim_mem=$CLAIM_MEM_FMT" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const verifyCpu = '${{ steps.benchmark.outputs.verify_cpu }}';
+            const verifyMem = '${{ steps.benchmark.outputs.verify_mem }}';
+            const integrityCpu = '${{ steps.benchmark.outputs.integrity_cpu }}';
+            const integrityMem = '${{ steps.benchmark.outputs.integrity_mem }}';
+            const claimCpu = '${{ steps.benchmark.outputs.claim_cpu }}';
+            const claimMem = '${{ steps.benchmark.outputs.claim_mem }}';
+
+            const body = `## ⛽ Gas Consumption Report
+
+            | Benchmark | CPU Instructions | Memory Bytes |
+            |-----------|------------------|--------------|
+            | \`verify()\` | ${verifyCpu || 'N/A'} | ${verifyMem || 'N/A'} |
+            | \`verify_integrity()\` | ${integrityCpu || 'N/A'} | ${integrityMem || 'N/A'} |
+            | \`ReceiptClaim::digest()\` | ${claimCpu || 'N/A'} | ${claimMem || 'N/A'} |
+
+            <details>
+            <summary>📊 What do these numbers mean?</summary>
+
+            - **CPU Instructions**: Determines transaction fees on Stellar
+            - **Memory Bytes**: Determines resource limits
+            - Lower is better! 🎯
+
+            </details>
+            `;
+
+            // Find existing comment from this workflow
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('⛽ Gas Consumption Report')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
