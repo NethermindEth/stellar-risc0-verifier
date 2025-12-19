@@ -38,7 +38,7 @@ jobs:
         id: benchmark
         run: |
           # Run benchmarks and capture output
-          OUTPUT=$(cargo test --manifest-path contracts/groth16-verifier/Cargo.toml bench_ -- --nocapture 2>&1)
+          OUTPUT=$(cargo test --release --manifest-path contracts/groth16-verifier/Cargo.toml bench_ -- --nocapture 2>&1)
           echo "$OUTPUT"
 
           # Parse benchmark results from `Budget::print()` output.
