@@ -2,7 +2,7 @@ use core::array;
 
 use soroban_sdk::{
     Bytes, BytesN, Env, contracttype,
-    crypto::bn254::{G1Affine, G2Affine},
+    crypto::bn254::{Bn254G1Affine as G1Affine, Bn254G2Affine as G2Affine},
 };
 
 use risc0_interface::VerifierError;
