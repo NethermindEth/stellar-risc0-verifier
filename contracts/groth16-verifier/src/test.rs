@@ -52,8 +52,7 @@ fn test_verify_proof() {
     let (env, client) = setup_test();
     let (seal, image_id, journal_digest) = prepare_inputs(&env);
 
-    // `verify` traps/panics on failure; for this test we just assert success.
-    client.verify(&seal, &image_id, &journal_digest);
+    assert_eq!(client.verify(&seal, &image_id, &journal_digest), ());
 }
 
 // ============================================================================
@@ -75,7 +74,7 @@ fn bench_verify() {
     let (seal, image_id, journal_digest) = prepare_inputs(&env);
 
     // Run verification
-    client.verify(&seal, &image_id, &journal_digest);
+    assert_eq!(client.verify(&seal, &image_id, &journal_digest), ());
 
     // Print results
     print_budget(&env, "verify()");
@@ -94,7 +93,7 @@ fn bench_verify_integrity() {
     };
 
     // Run verification
-    client.verify_integrity(&receipt);
+    assert_eq!(client.verify_integrity(&receipt), ());
 
     // Print results
     print_budget(&env, "verify_integrity()");
