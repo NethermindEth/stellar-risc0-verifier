@@ -80,7 +80,7 @@ print_section() {
     local padding=$(( (width - ${#title} - 2) / 2 ))
     local pad_left=$(printf '%*s' "$padding" '' | tr ' ' '─')
     local pad_right=$(printf '%*s' "$((width - ${#title} - 2 - padding))" '' | tr ' ' '─')
-    
+
     echo ""
     echo -e "${BOLD_BLUE}┌${pad_left} ${BOLD_WHITE}${title} ${BOLD_BLUE}${pad_right}┐${RESET}"
 }
@@ -123,7 +123,7 @@ spinner() {
     local message=$2
     local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local i=0
-    
+
     while kill -0 "$pid" 2>/dev/null; do
         local char="${spin:i++%${#spin}:1}"
         printf "\r\033[K${BOLD_BLUE}│${RESET} ${MAGENTA}%s${RESET}  %s" "$char" "$message"
@@ -227,15 +227,15 @@ done
 
 main() {
     print_banner
-    
+
     # ── Check CLI ────────────────────────────────────────────────────────────
     print_section "Environment Check"
-    
+
     if ! command -v stellar &>/dev/null; then
         fatal "Stellar CLI not found. Install with: ${CYAN}cargo install stellar-cli --locked${RESET}"
     fi
     success "Stellar CLI installed"
-    
+
     # ── Validate Network ─────────────────────────────────────────────────────
     if [[ -z "$NETWORK" ]]; then
         print_section_end
@@ -248,7 +248,7 @@ main() {
         echo -e "    ${CYAN}4)${RESET} mainnet    ${DIM}─ Stellar Mainnet (production)${RESET}"
         echo ""
         read -rp "$(echo -e "${BOLD_WHITE}Enter choice [1-4]: ${RESET}")" choice
-        
+
         case "$choice" in
             1|local) NETWORK="local" ;;
             2|futurenet) NETWORK="futurenet" ;;
@@ -256,23 +256,23 @@ main() {
             4|mainnet) NETWORK="mainnet" ;;
             *) echo -e "${RED}Invalid choice${RESET}"; exit 1 ;;
         esac
-        
+
         print_section "Environment Check (continued)"
     fi
-    
+
     if ! is_valid_network "$NETWORK"; then
         fatal "Invalid network: ${BOLD_WHITE}$NETWORK${RESET}. Use: local, futurenet, testnet, or mainnet"
     fi
-    
+
     success "Network: ${BOLD_MAGENTA}$NETWORK${RESET}"
-    
+
     # ── Validate Account ─────────────────────────────────────────────────────
     if [[ -z "$ACCOUNT" ]]; then
         print_section_end
         echo ""
         echo -e "${BOLD_WHITE}Available identities:${RESET}"
         echo ""
-        
+
         # List available identities
         IDENTITIES=$(stellar keys ls 2>/dev/null || echo "")
         if [[ -n "$IDENTITIES" ]]; then
@@ -283,36 +283,36 @@ main() {
         fi
         echo ""
         read -rp "$(echo -e "${BOLD_WHITE}Enter account identity alias: ${RESET}")" ACCOUNT
-        
+
         if [[ -z "$ACCOUNT" ]]; then
             echo -e "${RED}Account identity is required${RESET}"
             exit 1
         fi
-        
+
         print_section "Environment Check (continued)"
     fi
-    
+
     # Verify identity exists
     if ! stellar keys address "$ACCOUNT" &>/dev/null; then
         fatal "Identity '${BOLD_WHITE}$ACCOUNT${RESET}' not found. Create it with: ${CYAN}stellar keys generate $ACCOUNT --network $NETWORK${RESET}"
     fi
-    
+
     DEPLOYER_ADDRESS=$(stellar keys address "$ACCOUNT" 2>/dev/null)
     success "Account: ${BOLD_GREEN}$ACCOUNT${RESET}"
     info "Address: ${DIM}$DEPLOYER_ADDRESS${RESET}"
-    
+
     success "Contract: ${BOLD_YELLOW}groth16-verifier${RESET}"
-    
+
     print_section_end
-    
+
     # ── Change to project root ───────────────────────────────────────────────
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
     cd "$PROJECT_ROOT"
-    
+
     # ── Build Contract ───────────────────────────────────────────────────────
     print_section "Building Contract"
-    
+
     # Build and optimize contract with spinner
     stellar contract build --optimize > /tmp/build_output.txt 2>&1 &
     local build_pid=$!
@@ -320,7 +320,7 @@ main() {
     wait $build_pid
     local build_status=$?
     BUILD_OUTPUT=$(cat /tmp/build_output.txt)
-    
+
     if [[ $build_status -ne 0 ]]; then
         error "Build failed!"
         print_output "$BUILD_OUTPUT"
@@ -332,12 +332,12 @@ main() {
     if [[ -n "$BUILD_OUTPUT" ]]; then
         print_output "$BUILD_OUTPUT"
     fi
-    
+
     print_section_end
-    
+
     # ── Display Verifier Parameters ──────────────────────────────────────────
     print_section "Verifier Parameters"
-    
+
     # Extract parameters from build output
     SELECTOR=$(echo "$BUILD_OUTPUT" | grep -o 'SELECTOR:[[:space:]]*[a-f0-9]*' | awk '{print $2}' || echo "N/A")
     CONTROL_ROOT=$(echo "$BUILD_OUTPUT" | grep -o 'CONTROL_ROOT:[[:space:]]*[a-f0-9]*' | head -1 | awk '{print $2}' || echo "N/A")
@@ -346,12 +346,12 @@ main() {
     BN254_CONTROL_ID=$(echo "$BUILD_OUTPUT" | grep -o 'BN254_CONTROL_ID:[[:space:]]*[a-f0-9]*' | awk '{print $2}' || echo "N/A")
     VK_DIGEST=$(echo "$BUILD_OUTPUT" | grep -o 'VERIFIER_KEY_DIGEST:[[:space:]]*[a-f0-9]*' | awk '{print $2}' || echo "N/A")
     VERSION=$(echo "$BUILD_OUTPUT" | grep -o 'VERSION:[[:space:]]*[0-9.]*' | awk '{print $2}' || echo "N/A")
-    
+
     # If extraction failed, try reading from parameters.json directly
     if [[ "$SELECTOR" == "N/A" || -z "$SELECTOR" ]]; then
         warn "Could not extract parameters from build output"
         info "Reading from parameters.json..."
-        
+
         if [[ -f "contracts/groth16-verifier/parameters.json" ]]; then
             VERSION=$(jq -r '.version // "N/A"' "contracts/groth16-verifier/parameters.json")
             CONTROL_ROOT=$(jq -r '.control_root // "N/A"' "contracts/groth16-verifier/parameters.json")
@@ -360,7 +360,7 @@ main() {
             VK_DIGEST="${DIM}(computed at build time)${RESET}"
         fi
     fi
-    
+
     echo -e "${BOLD_BLUE}│${RESET}"
     kv "VERSION" "$VERSION" "$CYAN" "$BOLD_WHITE"
     kv "SELECTOR" "$SELECTOR" "$CYAN" "$BOLD_YELLOW"
@@ -376,28 +376,28 @@ main() {
     kv "VERIFIER_KEY_DIGEST" "" "$CYAN" "$WHITE"
     echo -e "${BOLD_BLUE}│${RESET}    ${BOLD_GREEN}$VK_DIGEST${RESET}"
     echo -e "${BOLD_BLUE}│${RESET}"
-    
+
     print_section_end
-    
+
     # ── Locate WASM File ─────────────────────────────────────────────────────
     print_section "Deployment"
-    
+
     # With --optimize, the CLI outputs to .optimized.wasm
     WASM_PATH="target/wasm32v1-none/release/groth16_verifier.optimized.wasm"
-    
+
     # Fallback to non-optimized if optimized doesn't exist
     if [[ ! -f "$WASM_PATH" ]]; then
         WASM_PATH="target/wasm32v1-none/release/groth16_verifier.wasm"
     fi
-    
+
     if [[ ! -f "$WASM_PATH" ]]; then
         fatal "WASM file not found at: ${DIM}$WASM_PATH${RESET}"
     fi
-    
+
     WASM_SIZE=$(du -h "$WASM_PATH" | cut -f1)
     info "WASM file: ${DIM}$WASM_PATH${RESET}"
     info "WASM size: ${DIM}$WASM_SIZE${RESET}"
-    
+
     # ── Mainnet Warning ──────────────────────────────────────────────────────
     if [[ "$NETWORK" == "mainnet" ]]; then
         echo -e "${BOLD_BLUE}│${RESET}"
@@ -412,7 +412,7 @@ main() {
             exit 0
         fi
     fi
-    
+
     # ── Deploy Contract ──────────────────────────────────────────────────────
     stellar contract deploy \
         --wasm "$WASM_PATH" \
@@ -425,23 +425,23 @@ main() {
     wait $deploy_pid
     local deploy_status=$?
     DEPLOY_OUTPUT=$(cat /tmp/deploy_output.txt)
-    
+
     if [[ $deploy_status -ne 0 ]]; then
         error "Deployment failed!"
         print_output "$DEPLOY_OUTPUT"
         print_section_end
         exit 1
     fi
-    
+
     CONTRACT_ID=$(echo "$DEPLOY_OUTPUT" | tail -1)
-    
+
     success "Deployed successfully!"
     print_output "$DEPLOY_OUTPUT"
     print_section_end
-    
+
     # ── Summary ──────────────────────────────────────────────────────────────
     print_section "Deployment Summary"
-    
+
     echo -e "${BOLD_BLUE}│${RESET}"
     kv "Contract" "groth16-verifier" "$WHITE" "$BOLD_CYAN"
     kv "Network" "$NETWORK" "$WHITE" "$BOLD_MAGENTA"
@@ -451,7 +451,7 @@ main() {
     echo -e "${BOLD_BLUE}│${RESET}    ${BOLD_WHITE}CONTRACT ID:${RESET}"
     echo -e "${BOLD_BLUE}│${RESET}    ${BOLD_GREEN}$CONTRACT_ID${RESET}"
     echo -e "${BOLD_BLUE}│${RESET}"
-    
+
     # Network-specific explorer link
     case "$NETWORK" in
         testnet)
@@ -467,10 +467,10 @@ main() {
             info "Explorer: ${CYAN}$EXPLORER_URL${RESET}"
             ;;
     esac
-    
+
     echo -e "${BOLD_BLUE}│${RESET}"
     print_section_end
-    
+
     # ── Final Banner ─────────────────────────────────────────────────────────
     echo ""
     echo -e "${BOLD_GREEN}    ✨ Deployment Complete! ✨${RESET}"
