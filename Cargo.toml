@@ -1,12 +1,11 @@
 [workspace]
-
 members = [
         "contracts/interface",
         "contracts/groth16-verifier",
         "contracts/risc0-router",
+        "contracts/mock-verifier",
         "tools/build-utils"
 ]
-
 resolver = "3"
 
 [workspace.package]
