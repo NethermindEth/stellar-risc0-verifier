@@ -31,9 +31,13 @@ pub enum VerifierError {
     MalformedSeal = 2,
     /// The selector in the seal does not match this verifier.
     InvalidSelector = 3,
+    /// The contract has already been initialized.
     AlreadyInitialized = 4,
+    /// The selector was removed and can no longer be assigned.
     SelectorRemoved = 5,
+    /// The selector is already assigned to a verifier.
     SelectorInUse = 6,
+    /// The selector is not registered.
     SelectorUnknown = 7,
 }
 
