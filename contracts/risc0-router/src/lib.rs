@@ -4,6 +4,8 @@ use risc0_interface::{
     Receipt, ReceiptClaim, RiscZeroVerifierClient, RiscZeroVerifierInterface, VerifierError,
 };
 use soroban_sdk::{Address, Bytes, BytesN, Env, contract, contractimpl, contracttype};
+use stellar_access::ownable::{Ownable, set_owner};
+use stellar_macros::only_owner;
 
 #[cfg(test)]
 mod test;
@@ -11,8 +13,6 @@ mod test;
 #[contracttype]
 #[derive(Clone)]
 enum DataKey {
-    /// Administrator address with permissions to change the router
-    Admin,
     /// Selector-specific verifier entry.
     Verifier(BytesN<4>),
 }
@@ -32,19 +32,17 @@ pub struct RiscZeroVerifierRouter;
 #[contractimpl]
 impl RiscZeroVerifierRouter {
     /// Initializes the router with the admin that can manage verifiers.
-    pub fn __constructor(env: Env, admin: Address) {
-        admin.require_auth();
-        env.storage().persistent().set(&DataKey::Admin, &admin);
+    pub fn __constructor(env: Env, owner: Address) {
+        set_owner(&env, &owner);
     }
 
     /// Adds a verifier for the selector.
+    #[only_owner]
     pub fn add_verifier(
         env: Env,
         selector: BytesN<4>,
         verifier: Address,
     ) -> Result<(), VerifierError> {
-        require_admin(&env);
-
         let key = DataKey::Verifier(selector);
         let verifier_address: Option<VerifierEntry> = env.storage().persistent().get(&key);
 
@@ -118,13 +116,10 @@ impl RiscZeroVerifierInterface for RiscZeroVerifierRouter {
     }
 }
 
-/// Ensures the stored admin authorized the call.
-fn require_admin(env: &Env) {
-    let admin: Address = env.storage().persistent().get(&DataKey::Admin).unwrap();
-    admin.require_auth();
-}
-
 /// Extracts the 4-byte selector from the seal prefix.
 fn selector_from_seal(seal: &Bytes) -> BytesN<4> {
     seal.slice(0..4).try_into().unwrap()
 }
+
+#[contractimpl(contracttrait)]
+impl Ownable for RiscZeroVerifierRouter {}

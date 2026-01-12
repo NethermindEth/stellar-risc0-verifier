@@ -96,11 +96,13 @@ fn unwrap_verifier_error<T: core::fmt::Debug>(
 // =============================================================================
 
 #[test]
-#[should_panic]
-fn test_constructor_requires_auth() {
+fn test_constructor_sets_owner() {
     let env = Env::default();
     let admin = Address::generate(&env);
-    env.register(RiscZeroVerifierRouter, (admin,));
+    let contract_id = env.register(RiscZeroVerifierRouter, (admin.clone(),));
+    let client = RiscZeroVerifierRouterClient::new(&env, &contract_id);
+
+    assert_eq!(client.get_owner(), Some(admin));
 }
 
 // =============================================================================
