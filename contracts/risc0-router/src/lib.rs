@@ -1,8 +1,7 @@
 #![no_std]
 
 use risc0_interface::{
-    Receipt, ReceiptClaim, RiscZeroVerifierClient, RiscZeroVerifierInterface, VerifierError,
-    VerifierError,
+    Receipt, RiscZeroVerifierClient, RiscZeroVerifierRouterInterface, VerifierEntry, VerifierError,
 };
 use soroban_sdk::{Address, Bytes, BytesN, Env, contract, contractimpl, contracttype};
 use stellar_access::ownable::{Ownable, set_owner};
@@ -81,31 +80,26 @@ impl RiscZeroVerifierRouter {
             None => Err(VerifierError::SelectorUnknown),
         }
     }
+}
 
+#[contractimpl]
+impl RiscZeroVerifierRouterInterface for RiscZeroVerifierRouter {
     /// Returns the verifier for a selector.
-    pub fn get_verifier_by_selector(
-        env: Env,
-        selector: BytesN<4>,
-    ) -> Result<Address, VerifierError> {
+    fn get_verifier_by_selector(env: Env, selector: BytesN<4>) -> Result<Address, VerifierError> {
         Self::get_verifier(&env, &selector)
     }
 
     /// Returns the raw verifier entry for a selector (unset, active, or tombstone).
-    pub fn verifiers(env: Env, selector: BytesN<4>) -> Option<VerifierEntry> {
+    fn verifiers(env: Env, selector: BytesN<4>) -> Option<VerifierEntry> {
         let key = DataKey::Verifier(selector);
         env.storage().persistent().get(&key)
     }
 
     /// Returns the verifier for the selector stored in the seal prefix.
-    pub fn get_verifier_from_seal(env: Env, seal: Bytes) -> Result<Address, VerifierError> {
+    fn get_verifier_from_seal(env: Env, seal: Bytes) -> Result<Address, VerifierError> {
         let selector = selector_from_seal(&seal);
         Self::get_verifier(&env, &selector)
     }
-}
-
-#[contractimpl]
-impl RiscZeroVerifierInterface for RiscZeroVerifierRouter {
-    type Proof = ();
 
     /// Verifies a receipt from its components.
     fn verify(
