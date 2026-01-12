@@ -123,12 +123,11 @@ impl RiscZeroVerifierInterface for RiscZeroVerifierRouter {
         image_id: BytesN<32>,
         journal: BytesN<32>,
     ) -> Result<(), VerifierError> {
-        let claim = ReceiptClaim::new(&env, image_id, journal);
-        let receipt = Receipt {
-            seal,
-            claim_digest: claim.digest(&env),
-        };
-        Self::verify_integrity(env, receipt)
+        let selector = selector_from_seal(&seal);
+        let verifier = Self::get_verifier(&env, &selector)?;
+        let verifier = RiscZeroVerifierClient::new(&env, &verifier);
+        verifier.verify(&seal, &image_id, &journal);
+        Ok(())
     }
 
     /// Verifies receipt integrity using the selector's verifier.
