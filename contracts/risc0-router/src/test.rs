@@ -264,10 +264,7 @@ fn test_get_verifier_from_seal_malformed_seal() {
     let seal = create_short_seal(&env);
 
     let result = client.try_get_verifier_from_seal(&seal);
-    assert_eq!(
-        unwrap_verifier_error(result),
-        VerifierError::MalformedSeal
-    );
+    assert_eq!(unwrap_verifier_error(result), VerifierError::MalformedSeal);
 }
 
 // =============================================================================
@@ -293,10 +290,7 @@ fn test_verifiers_getter_returns_raw_entry() {
 
     client.remove_verifier(&selector);
 
-    assert_eq!(
-        client.verifiers(&selector),
-        Some(VerifierEntry::Tombstone)
-    );
+    assert_eq!(client.verifiers(&selector), Some(VerifierEntry::Tombstone));
 }
 
 // =============================================================================
@@ -501,10 +495,7 @@ fn test_verify_integrity_routes_to_multiple_verifiers() {
 
     assert!(mock_a.was_called());
     assert!(!mock_b.was_called());
-    assert_eq!(
-        mock_a.get_verified_receipt().unwrap().seal,
-        receipt_a.seal
-    );
+    assert_eq!(mock_a.get_verified_receipt().unwrap().seal, receipt_a.seal);
 
     let receipt_b = Receipt {
         seal: create_seal_with_selector(&env, &selector_b),
@@ -513,10 +504,7 @@ fn test_verify_integrity_routes_to_multiple_verifiers() {
     client.verify_integrity(&receipt_b);
 
     assert!(mock_b.was_called());
-    assert_eq!(
-        mock_b.get_verified_receipt().unwrap().seal,
-        receipt_b.seal
-    );
+    assert_eq!(mock_b.get_verified_receipt().unwrap().seal, receipt_b.seal);
 }
 
 #[test]
@@ -546,10 +534,7 @@ fn test_verify_malformed_seal() {
     let journal_digest = BytesN::from_array(&env, &[1u8; 32]);
 
     let result = client.try_verify(&seal, &image_id, &journal_digest);
-    assert_eq!(
-        unwrap_verifier_error(result),
-        VerifierError::MalformedSeal
-    );
+    assert_eq!(unwrap_verifier_error(result), VerifierError::MalformedSeal);
 }
 
 #[test]
@@ -563,10 +548,7 @@ fn test_verify_integrity_malformed_seal() {
     };
 
     let result = client.try_verify_integrity(&receipt);
-    assert_eq!(
-        unwrap_verifier_error(result),
-        VerifierError::MalformedSeal
-    );
+    assert_eq!(unwrap_verifier_error(result), VerifierError::MalformedSeal);
 }
 
 // =============================================================================

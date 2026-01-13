@@ -89,7 +89,8 @@ impl RiscZeroVerifierRouterInterface for RiscZeroVerifierRouter {
         Self::get_verifier(&env, &selector)
     }
 
-    /// Returns the raw verifier entry for a selector (unset, active, or tombstone).
+    /// Returns the raw verifier entry for a selector (unset, active, or
+    /// tombstone).
     fn verifiers(env: Env, selector: BytesN<4>) -> Option<VerifierEntry> {
         let key = DataKey::Verifier(selector);
         env.storage().persistent().get(&key)
