@@ -19,18 +19,19 @@ fn read_selector(env: &Env) -> Result<Bytes, VerifierError> {
         .ok_or(VerifierError::InvalidSelector)
 }
 
+/// Mock verifier intended only for development with RISC Zero `DEV_MODE=1`.
+///
+/// !!! DANGER: USE IT ONLY FOR TESTING.
+///
+/// This verifier accepts a mock seal and does not perform any cryptographic proof verification. It
+/// is meant for local development, integration tests, and end-to-end testing flows where real
+/// proofs are not yet available or are intentionally bypassed.
+///
+/// Do not deploy or rely on this contract in production environments. It provides no security
+/// guarantees and will accept any receipt that matches the mock format.
 #[contract]
 pub struct RiscZeroMockVerifier;
 
-// This is a sample contract. Replace this placeholder with your own contract logic.
-// A corresponding test example is available in `test.rs`.
-//
-// For comprehensive examples, visit <https://github.com/stellar/soroban-examples>.
-// The repository includes use cases for the Stellar ecosystem, such as data storage on
-// the blockchain, token swaps, liquidity pools, and more.
-//
-// Refer to the official documentation:
-// <https://developers.stellar.org/docs/build/smart-contracts/overview>.
 #[contractimpl]
 impl RiscZeroMockVerifier {
     pub fn __constructor(env: Env, selector: BytesN<4>) {
@@ -40,11 +41,17 @@ impl RiscZeroMockVerifier {
             .set(&DataKey::Selector, &selector);
     }
 
+    /// Returns the configured selector as `BytesN<4>`.
+    ///
+    /// Returns [`VerifierError::InvalidSelector`] if the stored value is missing or malformed.
     pub fn selector(env: Env) -> Result<BytesN<4>, VerifierError> {
         let selector = read_selector(&env)?;
         BytesN::try_from(&selector).map_err(|_| VerifierError::InvalidSelector)
     }
 
+    /// Build a mock receipt for the given image ID and journal digest.
+    ///
+    /// The seal format matches the Ethereum mock verifier: `selector || claim_digest`.
     pub fn mock_prove(
         env: Env,
         image_id: BytesN<32>,
@@ -55,6 +62,9 @@ impl RiscZeroMockVerifier {
         Self::mock_prove_claim(env, claim_digest)
     }
 
+    /// Build a mock receipt for a precomputed claim digest.
+    ///
+    /// The seal format matches the Ethereum mock verifier: `selector || claim_digest`.
     pub fn mock_prove_claim(env: Env, claim_digest: BytesN<32>) -> Result<Receipt, VerifierError> {
         let selector = read_selector(&env)?;
         let mut seal = Bytes::new(&env);
@@ -69,6 +79,9 @@ impl RiscZeroMockVerifier {
 impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
     type Proof = ();
 
+    /// Verify a mock seal by reconstructing the claim digest from inputs.
+    ///
+    /// Returns a structured [`VerifierError`] on selector mismatch or invalid proof.
     fn verify(
         env: Env,
         seal: Bytes,
