@@ -1,10 +1,20 @@
 #![no_std]
 
-use soroban_sdk::{Bytes, BytesN, Env, contract, contractimpl};
+use soroban_sdk::{Bytes, BytesN, Env, contract, contractimpl, contracttype};
 
 use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError};
 
-const SELECTOR: [u8; 4] = [0, 0, 0, 0];
+#[contracttype]
+enum DataKey {
+    Selector,
+}
+
+fn read_selector(env: &Env) -> Result<Bytes, VerifierError> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::Selector)
+        .ok_or(VerifierError::InvalidSelector)
+}
 
 #[contract]
 pub struct RiscZeroMockVerifier;
@@ -19,7 +29,19 @@ pub struct RiscZeroMockVerifier;
 // Refer to the official documentation:
 // <https://developers.stellar.org/docs/build/smart-contracts/overview>.
 #[contractimpl]
-impl RiscZeroMockVerifier {}
+impl RiscZeroMockVerifier {
+    pub fn __constructor(env: Env, selector: BytesN<4>) {
+        let selector: Bytes = selector.into();
+        env.storage()
+            .persistent()
+            .set(&DataKey::Selector, &selector);
+    }
+
+    pub fn selector(env: Env) -> Result<BytesN<4>, VerifierError> {
+        let selector = read_selector(&env)?;
+        BytesN::try_from(&selector).map_err(|_| VerifierError::InvalidSelector)
+    }
+}
 
 #[contractimpl]
 impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
@@ -40,9 +62,10 @@ impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
     }
 
     fn verify_integrity(env: Env, receipt: risc0_interface::Receipt) -> Result<(), VerifierError> {
+        let expected_selector = read_selector(&env)?;
         let selector = receipt.seal.slice(0..4);
 
-        if selector != Bytes::from_array(&env, &SELECTOR) {
+        if selector != expected_selector {
             return Err(VerifierError::InvalidSelector);
         }
 
