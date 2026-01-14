@@ -51,6 +51,15 @@ impl RiscZeroMockVerifier {
         let claim_digest = claim.digest(&env);
         Self::mock_prove_claim(env, claim_digest)
     }
+
+    pub fn mock_prove_claim(env: Env, claim_digest: BytesN<32>) -> Result<Receipt, VerifierError> {
+        let selector = read_selector(&env)?;
+        let mut seal = Bytes::new(&env);
+        seal.append(&selector);
+        seal.append(&Bytes::from_array(&env, &claim_digest.to_array()));
+
+        Ok(Receipt { seal, claim_digest })
+    }
 }
 
 #[contractimpl]
