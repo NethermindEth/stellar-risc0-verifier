@@ -4,6 +4,9 @@ use soroban_sdk::{Bytes, BytesN, Env, contract, contractimpl, contracttype};
 
 use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError};
 
+#[cfg(test)]
+mod test;
+
 #[contracttype]
 enum DataKey {
     Selector,
