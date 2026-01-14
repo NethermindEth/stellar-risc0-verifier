@@ -69,13 +69,13 @@ impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
             return Err(VerifierError::InvalidSelector);
         }
 
-        let selector_hash = env.crypto().keccak256(&selector).to_bytes();
+        let seal_hash = env.crypto().keccak256(&receipt.seal.slice(4..)).to_bytes();
         let claim_hash = env
             .crypto()
             .keccak256(&receipt.claim_digest.into())
             .to_bytes();
 
-        if selector_hash != claim_hash {
+        if seal_hash != claim_hash {
             return Err(VerifierError::InvalidProof);
         }
 
