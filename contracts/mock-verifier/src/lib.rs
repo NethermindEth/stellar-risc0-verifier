@@ -2,7 +2,7 @@
 
 use soroban_sdk::{Bytes, BytesN, Env, contract, contractimpl};
 
-use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface};
+use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError};
 
 const SELECTOR: [u8; 4] = [0, 0, 0, 0];
 
@@ -25,21 +25,25 @@ impl RiscZeroMockVerifier {}
 impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
     type Proof = ();
 
-    fn verify(env: Env, seal: Bytes, image_id: BytesN<32>, journal: BytesN<32>) {
+    fn verify(
+        env: Env,
+        seal: Bytes,
+        image_id: BytesN<32>,
+        journal: BytesN<32>,
+    ) -> Result<(), VerifierError> {
         let claim = ReceiptClaim::new(&env, image_id, journal);
         let receipt = Receipt {
             seal,
             claim_digest: claim.digest(&env),
         };
-
-        Self::verify_integrity(env, receipt);
+        Self::verify_integrity(env, receipt)
     }
 
-    fn verify_integrity(env: Env, receipt: risc0_interface::Receipt) {
+    fn verify_integrity(env: Env, receipt: risc0_interface::Receipt) -> Result<(), VerifierError> {
         let selector = receipt.seal.slice(0..4);
 
         if selector != Bytes::from_array(&env, &SELECTOR) {
-            panic!("");
+            return Err(VerifierError::InvalidSelector);
         }
 
         let selector_hash = env.crypto().keccak256(&selector).to_bytes();
@@ -49,7 +53,9 @@ impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
             .to_bytes();
 
         if selector_hash != claim_hash {
-            panic!("")
+            return Err(VerifierError::InvalidProof);
         }
+
+        Ok(())
     }
 }
