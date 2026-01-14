@@ -41,6 +41,16 @@ impl RiscZeroMockVerifier {
         let selector = read_selector(&env)?;
         BytesN::try_from(&selector).map_err(|_| VerifierError::InvalidSelector)
     }
+
+    pub fn mock_prove(
+        env: Env,
+        image_id: BytesN<32>,
+        journal_digest: BytesN<32>,
+    ) -> Result<Receipt, VerifierError> {
+        let claim = ReceiptClaim::new(&env, image_id, journal_digest);
+        let claim_digest = claim.digest(&env);
+        Self::mock_prove_claim(env, claim_digest)
+    }
 }
 
 #[contractimpl]
