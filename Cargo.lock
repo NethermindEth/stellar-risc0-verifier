@@ -1710,6 +1710,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellar-governance"
+version = "0.6.0"
+source = "git+https://github.com/OpenZeppelin/stellar-contracts?rev=63167bb#63167bb707edf4ad25e46572df11d4332d10b68e"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellar-macros"
 version = "0.6.0"
 source = "git+https://github.com/OpenZeppelin/stellar-contracts?rev=63167bb#63167bb707edf4ad25e46572df11d4332d10b68e"
@@ -1842,6 +1850,17 @@ checksum = "2e70e4c5a0e0a8a4823ad65dfe1a6930e4f4d756dcd9dd7939022b5e8c501215"
 dependencies = [
  "num-conv",
  "time-core",
+]
+
+[[package]]
+name = "timelock"
+version = "0.0.0"
+dependencies = [
+ "risc0-interface",
+ "soroban-sdk",
+ "stellar-access",
+ "stellar-governance",
+ "stellar-macros",
 ]
 
 [[package]]

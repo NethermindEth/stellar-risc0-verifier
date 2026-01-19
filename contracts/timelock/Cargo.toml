@@ -1,0 +1,19 @@
+[package]
+name = "timelock"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["lib", "cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+risc0-interface = { workspace = true }
+stellar-access = { workspace = true }
+stellar-governance = { workspace = true }
+stellar-macros = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
