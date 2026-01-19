@@ -70,8 +70,7 @@
 //!
 //! ## Self-Administration Operations
 //!
-//! When the contract is deployed with `admin` set to `None`, the contract
-//! address itself becomes the admin (self-administration). For
+//! The contract address itself is the admin (self-administration). For
 //! self-administration operations (e.g., updating the minimum delay, granting
 //! and revoking roles), the proposal lifecycle is:
 //!
@@ -92,13 +91,13 @@
 //! implementation validates and marks operations as executed without performing
 //! the cross-contract call, allowing admin functions to be called directly.
 //!
-//! ## Optional External Admin
+//! ## Optional Bootstrap Admin
 //!
-//! An optional external admin can be provided during deployment to aid with
-//! initial configuration of roles after deployment without being subject to
-//! delay. However, this role should be subsequently renounced in favor of
-//! administration through timelocked proposals to ensure all administrative
-//! actions have proper oversight and transparency.
+//! An optional bootstrap admin can be provided during deployment to aid with
+//! initial configuration of proposer/executor/canceller roles without being
+//! subject to delay. This bootstrap role should be subsequently renounced in
+//! favor of administration through timelocked proposals to ensure all
+//! administrative actions have proper oversight and transparency.
 
 #![no_std]
 
@@ -111,6 +110,7 @@ use soroban_sdk::{
 };
 use stellar_access::access_control::{
     AccessControl, ensure_role, get_role_member_count, grant_role_no_auth, set_admin,
+    set_role_admin_no_auth,
 };
 use stellar_governance::timelock::{
     Operation, OperationState, TimelockError, cancel_operation, execute_operation,
@@ -131,6 +131,9 @@ const EXECUTOR_ROLE: Symbol = symbol_short!("executor");
 
 /// Role for accounts that can cancel pending operations.
 const CANCELLER_ROLE: Symbol = symbol_short!("canceller");
+
+/// Role for bootstrap admins that can configure proposer/executor/canceller roles.
+const BOOTSTRAP_ADMIN_ROLE: Symbol = symbol_short!("bootstrap");
 
 /// Metadata for self-administration operations.
 ///
@@ -244,15 +247,16 @@ impl TimelockController {
     /// * `min_delay` - Initial minimum delay in seconds for operations.
     /// * `proposers` - Accounts to be granted proposer and canceller roles.
     /// * `executors` - Accounts to be granted executor role.
-    /// * `admin` - Optional account to be granted admin role for initial setup.
-    ///   If not provided, the contract itself becomes the admin (self-administration).
+    /// * `admin` - Optional account to be granted a bootstrap role for initial setup.
+    ///   The contract itself is always the admin (self-administration).
     ///
     /// # Notes
     ///
+    /// - The contract itself is always the admin.
     /// - Proposers are automatically granted the canceller role.
-    /// - If an external admin is provided, they should renounce their admin
-    ///   role after initial configuration to ensure all admin actions go
-    ///   through the timelock.
+    /// - If an external admin is provided, they receive the bootstrap role
+    ///   that can manage proposer/executor/canceller roles and should renounce
+    ///   it after initial configuration.
     pub fn __constructor(
         e: &Env,
         min_delay: u32,
@@ -260,8 +264,17 @@ impl TimelockController {
         executors: Vec<Address>,
         admin: Option<Address>,
     ) {
-        let admin_addr = admin.unwrap_or_else(|| e.current_contract_address());
+        let admin_addr = e.current_contract_address();
         set_admin(e, &admin_addr);
+
+        if let Some(bootstrap_admin) = admin {
+            // Make BOOTSTRAP_ADMIN_ROLE the admin role for the proposer, executor, and canceller roles
+            set_role_admin_no_auth(e, &PROPOSER_ROLE, &BOOTSTRAP_ADMIN_ROLE);
+            set_role_admin_no_auth(e, &EXECUTOR_ROLE, &BOOTSTRAP_ADMIN_ROLE);
+            set_role_admin_no_auth(e, &CANCELLER_ROLE, &BOOTSTRAP_ADMIN_ROLE);
+
+            grant_role_no_auth(e, &bootstrap_admin, &BOOTSTRAP_ADMIN_ROLE, &admin_addr);
+        }
 
         // Grant proposers both proposer and canceller roles
         for proposer in proposers.iter() {
