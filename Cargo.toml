@@ -4,6 +4,7 @@ members = [
         "contracts/groth16-verifier",
         "contracts/mock-verifier",
         "contracts/risc0-router",
+        "contracts/timelock",
         "tools/build-utils"
 ]
 resolver = "3"
@@ -26,6 +27,7 @@ serde_json = "1.0.145"
 sha2 = "0.10.9"
 stellar-access = { git = "https://github.com/OpenZeppelin/stellar-contracts", tag = "v0.6.0" }
 stellar-macros = { git = "https://github.com/OpenZeppelin/stellar-contracts", tag = "v0.6.0" }
+stellar-governance = { git = "https://github.com/OpenZeppelin/stellar-contracts", tag = "v0.6.0" }
 
 build-utils = { path = "tools/build-utils" }
 risc0-interface = { path = "contracts/interface"}
