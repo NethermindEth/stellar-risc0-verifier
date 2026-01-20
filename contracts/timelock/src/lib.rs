@@ -102,11 +102,12 @@
 #![no_std]
 
 use soroban_sdk::{
-    Address, BytesN, Env, IntoVal, Symbol, Val, Vec,
+    Address, Bytes, BytesN, Env, IntoVal, Symbol, Val, Vec,
     auth::{Context, ContractContext, CustomAccountInterface},
-    contract, contractimpl, contracttype,
+    contract, contracterror, contractimpl, contracttype,
     crypto::Hash,
     panic_with_error, symbol_short,
+    xdr::ToXdr,
 };
 use stellar_access::access_control::{
     AccessControl, ensure_role, get_role_member_count, grant_role_no_auth, set_admin,
@@ -149,6 +150,13 @@ pub struct OperationMeta {
     pub salt: BytesN<32>,
     /// The executor address (must have executor role if executors are configured).
     pub executor: Option<Address>,
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[repr(u32)]
+pub enum TimelockControllerError {
+    BatchLengthMismatch = 5000,
 }
 
 /// TimeLock Controller contract.
@@ -384,6 +392,137 @@ impl TimelockController {
         execute_operation(e, &operation)
     }
 
+    /// Computes the unique identifier for a batch of operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - Access to Soroban environment.
+    /// * `targets` - The target contract addresses.
+    /// * `functions` - The function names to invoke.
+    /// * `args_list` - The arguments for each function.
+    /// * `predecessor` - The predecessor operation ID.
+    /// * `salt` - Salt for uniqueness.
+    ///
+    /// # Returns
+    ///
+    /// The unique identifier (hash) for the batch.
+    pub fn hash_operation_batch(
+        e: &Env,
+        targets: Vec<Address>,
+        functions: Vec<Symbol>,
+        args_list: Vec<Vec<Val>>,
+        predecessor: BytesN<32>,
+        salt: BytesN<32>,
+    ) -> BytesN<32> {
+        validate_batch_lengths(e, &targets, &functions, &args_list);
+        hash_operation_batch_inner(e, &targets, &functions, &args_list, &predecessor, &salt)
+    }
+
+    /// Schedules a batch of operations for execution after a delay.
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - Access to Soroban environment.
+    /// * `targets` - The target contract addresses.
+    /// * `functions` - The function names to invoke.
+    /// * `args_list` - The arguments for each function.
+    /// * `predecessor` - The predecessor operation ID (use all zeros for none).
+    /// * `salt` - Salt for uniqueness (use all zeros for default).
+    /// * `delay` - The delay in seconds before the operations can be executed.
+    /// * `proposer` - The address proposing the operation (must have proposer role).
+    ///
+    /// # Returns
+    ///
+    /// The unique identifier (hash) of the scheduled batch.
+    ///
+    /// # Notes
+    ///
+    /// * Authorization for `proposer` is required.
+    /// * The proposer must have the PROPOSER_ROLE.
+    /// * The delay must be >= the minimum delay.
+    #[allow(clippy::too_many_arguments)]
+    #[only_role(proposer, "proposer")]
+    pub fn schedule_batch(
+        e: &Env,
+        targets: Vec<Address>,
+        functions: Vec<Symbol>,
+        args_list: Vec<Vec<Val>>,
+        predecessor: BytesN<32>,
+        salt: BytesN<32>,
+        delay: u32,
+        proposer: Address,
+    ) -> BytesN<32> {
+        validate_batch_lengths(e, &targets, &functions, &args_list);
+        let batch_id =
+            hash_operation_batch_inner(e, &targets, &functions, &args_list, &predecessor, &salt);
+
+        for i in 0..targets.len() {
+            let operation = Operation {
+                target: targets.get(i).unwrap(),
+                function: functions.get(i).unwrap(),
+                args: args_list.get(i).unwrap(),
+                predecessor: predecessor.clone(),
+                salt: salt.clone(),
+            };
+            schedule_operation(e, &operation, delay);
+        }
+
+        batch_id
+    }
+
+    /// Executes a ready batch of operations.
+    ///
+    /// **Note**: This function is only for executing operations on external
+    /// contracts. For self-administration operations, call the admin function
+    /// directly instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - Access to Soroban environment.
+    /// * `targets` - The target contract addresses.
+    /// * `functions` - The function names to invoke.
+    /// * `args_list` - The arguments for each function.
+    /// * `predecessor` - The predecessor operation ID.
+    /// * `salt` - Salt for uniqueness.
+    /// * `executor` - The address executing the operation (must have executor role if configured).
+    ///
+    /// # Returns
+    ///
+    /// The return values from the executed operations.
+    pub fn execute_batch(
+        e: &Env,
+        targets: Vec<Address>,
+        functions: Vec<Symbol>,
+        args_list: Vec<Vec<Val>>,
+        predecessor: BytesN<32>,
+        salt: BytesN<32>,
+        executor: Option<Address>,
+    ) -> Vec<Val> {
+        validate_batch_lengths(e, &targets, &functions, &args_list);
+
+        if get_role_member_count(e, &EXECUTOR_ROLE) != 0 {
+            let executor =
+                executor.expect("executor must be present when executors are configured");
+            ensure_role(e, &EXECUTOR_ROLE, &executor);
+            executor.require_auth();
+        }
+
+        let mut results = Vec::new(e);
+        for i in 0..targets.len() {
+            let operation = Operation {
+                target: targets.get(i).unwrap(),
+                function: functions.get(i).unwrap(),
+                args: args_list.get(i).unwrap(),
+                predecessor: predecessor.clone(),
+                salt: salt.clone(),
+            };
+            let result = execute_operation(e, &operation);
+            results.push_back(result);
+        }
+
+        results
+    }
+
     /// Cancels a scheduled operation.
     ///
     /// # Arguments
@@ -539,6 +678,36 @@ impl TimelockController {
     pub fn is_operation_done(e: &Env, operation_id: BytesN<32>) -> bool {
         is_operation_done(e, &operation_id)
     }
+}
+
+fn validate_batch_lengths(
+    e: &Env,
+    targets: &Vec<Address>,
+    functions: &Vec<Symbol>,
+    args_list: &Vec<Vec<Val>>,
+) {
+    if targets.len() != functions.len() || targets.len() != args_list.len() {
+        panic_with_error!(e, TimelockControllerError::BatchLengthMismatch);
+    }
+}
+
+fn hash_operation_batch_inner(
+    e: &Env,
+    targets: &Vec<Address>,
+    functions: &Vec<Symbol>,
+    args_list: &Vec<Vec<Val>>,
+    predecessor: &BytesN<32>,
+    salt: &BytesN<32>,
+) -> BytesN<32> {
+    let mut data = Bytes::new(e);
+
+    data.append(&targets.to_xdr(e));
+    data.append(&functions.to_xdr(e));
+    data.append(&args_list.to_xdr(e));
+    data.append(&predecessor.clone().into());
+    data.append(&salt.clone().into());
+
+    e.crypto().keccak256(&data).into()
 }
 
 // Expose role management functions via AccessControl trait
