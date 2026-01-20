@@ -159,6 +159,15 @@ pub enum TimelockControllerError {
     BatchLengthMismatch = 5000,
 }
 
+/// Event emitted when a scheduled operation uses a non-zero salt.
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CallSalt {
+    #[topic]
+    pub id: BytesN<32>,
+    pub salt: BytesN<32>,
+}
+
 /// Event emitted for each operation in a scheduled batch.
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -369,7 +378,11 @@ impl TimelockController {
             predecessor,
             salt,
         };
-        schedule_operation(e, &operation, delay)
+        let op_id = schedule_operation(e, &operation, delay);
+        if !is_zero_bytes32(e, &operation.salt) {
+            emit_call_salt(e, &op_id, &operation.salt);
+        }
+        op_id
     }
 
     /// Executes a scheduled operation that is ready.
@@ -775,6 +788,18 @@ fn hash_operation_batch_inner(
     data.append(&salt.clone().into());
 
     e.crypto().keccak256(&data).into()
+}
+
+fn emit_call_salt(e: &Env, id: &BytesN<32>, salt: &BytesN<32>) {
+    CallSalt {
+        id: id.clone(),
+        salt: salt.clone(),
+    }
+    .publish(e);
+}
+
+fn is_zero_bytes32(e: &Env, value: &BytesN<32>) -> bool {
+    *value == BytesN::<32>::from_array(e, &[0u8; 32])
 }
 
 // Expose role management functions via AccessControl trait
