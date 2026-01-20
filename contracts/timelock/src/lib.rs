@@ -104,7 +104,7 @@
 use soroban_sdk::{
     Address, Bytes, BytesN, Env, IntoVal, Symbol, Val, Vec,
     auth::{Context, ContractContext, CustomAccountInterface},
-    contract, contracterror, contractimpl, contracttype,
+    contract, contracterror, contractevent, contractimpl, contracttype,
     crypto::Hash,
     panic_with_error, symbol_short,
     xdr::ToXdr,
@@ -157,6 +157,37 @@ pub struct OperationMeta {
 #[repr(u32)]
 pub enum TimelockControllerError {
     BatchLengthMismatch = 5000,
+}
+
+/// Event emitted for each operation in a scheduled batch.
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BatchCallScheduled {
+    #[topic]
+    pub id: BytesN<32>,
+    #[topic]
+    pub index: u32,
+    pub target: Address,
+    pub function: Symbol,
+    pub args: Vec<Val>,
+    pub predecessor: BytesN<32>,
+    pub salt: BytesN<32>,
+    pub delay: u32,
+}
+
+/// Event emitted for each operation in an executed batch.
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BatchCallExecuted {
+    #[topic]
+    pub id: BytesN<32>,
+    #[topic]
+    pub index: u32,
+    pub target: Address,
+    pub function: Symbol,
+    pub args: Vec<Val>,
+    pub predecessor: BytesN<32>,
+    pub salt: BytesN<32>,
 }
 
 /// TimeLock Controller contract.
@@ -457,14 +488,33 @@ impl TimelockController {
             hash_operation_batch_inner(e, &targets, &functions, &args_list, &predecessor, &salt);
 
         for i in 0..targets.len() {
+            let target = targets.get(i).unwrap();
+            let function = functions.get(i).unwrap();
+            let args = args_list.get(i).unwrap();
+            let predecessor = predecessor.clone();
+            let salt = salt.clone();
             let operation = Operation {
-                target: targets.get(i).unwrap(),
-                function: functions.get(i).unwrap(),
-                args: args_list.get(i).unwrap(),
+                target: target.clone(),
+                function: function.clone(),
+                args: args.clone(),
                 predecessor: predecessor.clone(),
                 salt: salt.clone(),
             };
             schedule_operation(e, &operation, delay);
+            BatchCallScheduled {
+                id: batch_id.clone(),
+                index: i,
+                target,
+                function,
+                args,
+                predecessor,
+                salt,
+                delay,
+            }
+            .publish(e);
+        }
+        if !is_zero_bytes32(e, &salt) {
+            emit_call_salt(e, &batch_id, &salt);
         }
 
         batch_id
@@ -499,6 +549,8 @@ impl TimelockController {
         executor: Option<Address>,
     ) -> Vec<Val> {
         validate_batch_lengths(e, &targets, &functions, &args_list);
+        let batch_id =
+            hash_operation_batch_inner(e, &targets, &functions, &args_list, &predecessor, &salt);
 
         if get_role_member_count(e, &EXECUTOR_ROLE) != 0 {
             let executor =
@@ -509,15 +561,30 @@ impl TimelockController {
 
         let mut results = Vec::new(e);
         for i in 0..targets.len() {
+            let target = targets.get(i).unwrap();
+            let function = functions.get(i).unwrap();
+            let args = args_list.get(i).unwrap();
+            let predecessor = predecessor.clone();
+            let salt = salt.clone();
             let operation = Operation {
-                target: targets.get(i).unwrap(),
-                function: functions.get(i).unwrap(),
-                args: args_list.get(i).unwrap(),
+                target: target.clone(),
+                function: function.clone(),
+                args: args.clone(),
                 predecessor: predecessor.clone(),
                 salt: salt.clone(),
             };
             let result = execute_operation(e, &operation);
             results.push_back(result);
+            BatchCallExecuted {
+                id: batch_id.clone(),
+                index: i,
+                target,
+                function,
+                args,
+                predecessor,
+                salt,
+            }
+            .publish(e);
         }
 
         results
