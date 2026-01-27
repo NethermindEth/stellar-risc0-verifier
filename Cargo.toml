@@ -12,7 +12,7 @@ license = "Apache-2.0"
 ark-bn254 = "=0.4.0"
 ark-ec = "=0.4.2"
 ark-ff = "=0.4.2"
-soroban-sdk = { git = "https://github.com/stellar/rs-soroban-sdk", branch = "release/v25-preview" }
+soroban-sdk = "25"
 ark-serialize = "=0.4.2"
 hex = "0.4.3"
 serde = "1.0.228"
