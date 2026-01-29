@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use soroban_sdk::{
     Address, BytesN, Env, IntoVal, Symbol, Val, Vec,
     auth::{Context, ContractContext},
@@ -7,9 +5,9 @@ use soroban_sdk::{
     testutils::{Address as _, BytesN as _, Events as _, Ledger as _, MockAuth, MockAuthInvoke},
     vec,
 };
+use stellar_governance::timelock::TimelockError;
 
 use crate::{OperationMeta, TimelockController, TimelockControllerClient};
-use stellar_governance::timelock::TimelockError;
 
 // A simple target contract for testing timelock operations
 mod target_contract {
@@ -293,7 +291,7 @@ fn test_schedule_without_proposer_role() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (timelock, target, _, _, _) = setup_with_external_admin(&e);
+    let (timelock, target, ..) = setup_with_external_admin(&e);
     let non_proposer = Address::generate(&e);
 
     let predecessor = zero_bytes(&e);
@@ -739,7 +737,7 @@ fn test_hash_operation_deterministic_and_salt() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (timelock, target, _, _, _) = setup_with_external_admin(&e);
+    let (timelock, target, ..) = setup_with_external_admin(&e);
 
     let predecessor = zero_bytes(&e);
     let salt = zero_bytes(&e);
@@ -1258,7 +1256,7 @@ fn test_grant_and_revoke_role() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (timelock, _, admin, _, _) = setup_with_external_admin(&e);
+    let (timelock, _, admin, ..) = setup_with_external_admin(&e);
     let new_proposer = Address::generate(&e);
 
     assert!(

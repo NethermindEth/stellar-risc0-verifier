@@ -2,8 +2,8 @@
 //!
 //! TimeLock Controller Contract.
 //!
-//! This contract implements a timelock controller with role-based access control,
-//! following the OpenZeppelin pattern for Stellar/Soroban.
+//! This contract implements a timelock controller with role-based access
+//! control, following the OpenZeppelin pattern for Stellar/Soroban.
 //!
 //! # Architecture
 //!
@@ -122,6 +122,7 @@ use stellar_governance::timelock::{
 };
 use stellar_macros::{only_admin, only_role};
 
+#[cfg(test)]
 mod test;
 
 /// Role for accounts that can schedule operations.
@@ -133,14 +134,15 @@ const EXECUTOR_ROLE: Symbol = symbol_short!("executor");
 /// Role for accounts that can cancel pending operations.
 const CANCELLER_ROLE: Symbol = symbol_short!("canceller");
 
-/// Role for bootstrap admins that can configure proposer/executor/canceller roles.
+/// Role for bootstrap admins that can configure proposer/executor/canceller
+/// roles.
 const BOOTSTRAP_ADMIN_ROLE: Symbol = symbol_short!("bootstrap");
 
 /// Metadata for self-administration operations.
 ///
 /// This struct is used as the signature type in `CustomAccountInterface` to
-/// provide the necessary context for validating and executing self-administration
-/// operations.
+/// provide the necessary context for validating and executing
+/// self-administration operations.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct OperationMeta {
@@ -148,7 +150,8 @@ pub struct OperationMeta {
     pub predecessor: BytesN<32>,
     /// Salt for uniqueness.
     pub salt: BytesN<32>,
-    /// The executor address (must have executor role if executors are configured).
+    /// The executor address (must have executor role if executors are
+    /// configured).
     pub executor: Option<Address>,
 }
 
@@ -295,16 +298,16 @@ impl TimelockController {
     /// * `min_delay` - Initial minimum delay in seconds for operations.
     /// * `proposers` - Accounts to be granted proposer and canceller roles.
     /// * `executors` - Accounts to be granted executor role.
-    /// * `admin` - Optional account to be granted a bootstrap role for initial setup.
-    ///   The contract itself is always the admin (self-administration).
+    /// * `admin` - Optional account to be granted a bootstrap role for initial
+    ///   setup. The contract itself is always the admin (self-administration).
     ///
     /// # Notes
     ///
     /// - The contract itself is always the admin.
     /// - Proposers are automatically granted the canceller role.
-    /// - If an external admin is provided, they receive the bootstrap role
-    ///   that can manage proposer/executor/canceller roles and should renounce
-    ///   it after initial configuration.
+    /// - If an external admin is provided, they receive the bootstrap role that
+    ///   can manage proposer/executor/canceller roles and should renounce it
+    ///   after initial configuration.
     pub fn __constructor(
         e: &Env,
         min_delay: u32,
@@ -316,7 +319,8 @@ impl TimelockController {
         set_admin(e, &admin_addr);
 
         if let Some(bootstrap_admin) = admin {
-            // Make BOOTSTRAP_ADMIN_ROLE the admin role for the proposer, executor, and canceller roles
+            // Make BOOTSTRAP_ADMIN_ROLE the admin role for the proposer, executor, and
+            // canceller roles
             set_role_admin_no_auth(e, &PROPOSER_ROLE, &BOOTSTRAP_ADMIN_ROLE);
             set_role_admin_no_auth(e, &EXECUTOR_ROLE, &BOOTSTRAP_ADMIN_ROLE);
             set_role_admin_no_auth(e, &CANCELLER_ROLE, &BOOTSTRAP_ADMIN_ROLE);
@@ -348,7 +352,8 @@ impl TimelockController {
     /// * `predecessor` - The predecessor operation ID (use all zeros for none).
     /// * `salt` - Salt for uniqueness (use all zeros for default).
     /// * `delay` - The delay in seconds before the operation can be executed.
-    /// * `proposer` - The address proposing the operation (must have proposer role).
+    /// * `proposer` - The address proposing the operation (must have proposer
+    ///   role).
     ///
     /// # Returns
     ///
@@ -399,7 +404,8 @@ impl TimelockController {
     /// * `args` - The arguments to pass to the function.
     /// * `predecessor` - The predecessor operation ID.
     /// * `salt` - Salt for uniqueness.
-    /// * `executor` - The address executing the operation (must have executor role if configured).
+    /// * `executor` - The address executing the operation (must have executor
+    ///   role if configured).
     ///
     /// # Returns
     ///
@@ -408,7 +414,8 @@ impl TimelockController {
     /// # Notes
     ///
     /// * If executors are configured (EXECUTOR_ROLE has members), authorization
-    ///   for `executor` is required and the executor must have the EXECUTOR_ROLE.
+    ///   for `executor` is required and the executor must have the
+    ///   EXECUTOR_ROLE.
     /// * If no executors are configured, anyone can execute ready operations.
     pub fn execute_op(
         e: &Env,
@@ -473,7 +480,8 @@ impl TimelockController {
     /// * `predecessor` - The predecessor operation ID (use all zeros for none).
     /// * `salt` - Salt for uniqueness (use all zeros for default).
     /// * `delay` - The delay in seconds before the operations can be executed.
-    /// * `proposer` - The address proposing the operation (must have proposer role).
+    /// * `proposer` - The address proposing the operation (must have proposer
+    ///   role).
     ///
     /// # Returns
     ///
@@ -547,7 +555,8 @@ impl TimelockController {
     /// * `args_list` - The arguments for each function.
     /// * `predecessor` - The predecessor operation ID.
     /// * `salt` - Salt for uniqueness.
-    /// * `executor` - The address executing the operation (must have executor role if configured).
+    /// * `executor` - The address executing the operation (must have executor
+    ///   role if configured).
     ///
     /// # Returns
     ///
@@ -609,7 +618,8 @@ impl TimelockController {
     ///
     /// * `e` - Access to Soroban environment.
     /// * `operation_id` - The unique identifier of the operation to cancel.
-    /// * `canceller` - The address cancelling the operation (must have canceller role).
+    /// * `canceller` - The address cancelling the operation (must have
+    ///   canceller role).
     ///
     /// # Notes
     ///
