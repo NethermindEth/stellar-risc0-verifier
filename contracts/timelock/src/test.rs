@@ -1126,7 +1126,7 @@ fn test_call_salt_emitted_for_schedule_op() {
     let salt = salt_from_u8(&e, 1);
     let args: Vec<Val> = vec![&e, 42u32.into_val(&e)];
 
-    let before = e.events().all().len();
+    let before = e.events().all().events().len();
     timelock.schedule_op(
         &target.address,
         &symbol_short!("set_value"),
@@ -1136,7 +1136,7 @@ fn test_call_salt_emitted_for_schedule_op() {
         &100u32,
         &proposer,
     );
-    let after = e.events().all().len();
+    let after = e.events().all().events().len();
 
     // OperationScheduled + CallSalt
     assert_eq!(after, before + 2);
@@ -1154,7 +1154,7 @@ fn test_call_salt_emitted_for_schedule_batch() {
     let (targets, functions, args_list, _args1, _args2) =
         batch_two_calls(&e, &target.address, 10, 20);
 
-    let before = e.events().all().len();
+    let before = e.events().all().events().len();
     timelock.schedule_batch(
         &targets,
         &functions,
@@ -1164,7 +1164,7 @@ fn test_call_salt_emitted_for_schedule_batch() {
         &100u32,
         &proposer,
     );
-    let after = e.events().all().len();
+    let after = e.events().all().events().len();
 
     // 2x OperationScheduled + 2x BatchCallScheduled + CallSalt
     assert_eq!(after, before + 5);
@@ -1202,7 +1202,7 @@ fn test_execute_batch_emits_events() {
         &salt,
         &Some(executor),
     );
-    let after = e.events().all().len();
+    let after = e.events().all().events().len();
 
     // 2x OperationExecuted + 2x BatchCallExecuted
     assert_eq!(after, 4);
