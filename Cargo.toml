@@ -5,6 +5,7 @@ members = [
         "contracts/risc0-router",
         "contracts/mock-verifier",
         "contracts/timelock",
+        "contracts/emergency-stop",
         "tools/build-utils"
 ]
 resolver = "3"
