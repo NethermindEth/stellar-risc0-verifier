@@ -29,6 +29,7 @@ sha2 = "0.10.9"
 stellar-access = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
 stellar-macros = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
 stellar-governance = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
+stellar-contract-utils = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
 
 build-utils = { path = "tools/build-utils" }
 risc0-interface = { path = "contracts/interface"}

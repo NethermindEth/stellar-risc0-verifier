@@ -734,6 +734,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "emergency-stop"
+version = "0.1.0"
+dependencies = [
+ "risc0-interface",
+ "soroban-sdk",
+ "stellar-access",
+ "stellar-contract-utils",
+ "stellar-macros",
+]
+
+[[package]]
 name = "enum-ordinalize"
 version = "4.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1703,6 +1714,14 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "stellar-access"
+version = "0.6.0"
+source = "git+https://github.com/OpenZeppelin/stellar-contracts?rev=63167bb#63167bb707edf4ad25e46572df11d4332d10b68e"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellar-contract-utils"
 version = "0.6.0"
 source = "git+https://github.com/OpenZeppelin/stellar-contracts?rev=63167bb#63167bb707edf4ad25e46572df11d4332d10b68e"
 dependencies = [
