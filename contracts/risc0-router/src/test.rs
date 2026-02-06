@@ -2,7 +2,7 @@ use super::*;
 use risc0_interface::{Receipt, ReceiptClaim};
 use soroban_sdk::{
     Address, Bytes, BytesN, Env, IntoVal, Symbol, contract, contractimpl, symbol_short,
-    testutils::Address as _,
+    testutils::{Address as _, Ledger as _, storage::Persistent as _},
 };
 
 // =============================================================================
@@ -24,6 +24,11 @@ mod mock_verifier {
         /// Returns true if this mock was called (for testing routing)
         pub fn was_called(env: Env) -> bool {
             env.storage().temporary().has(&"called")
+        }
+
+        /// Configures whether verification should fail with InvalidProof.
+        pub fn set_should_fail(env: Env, should_fail: bool) {
+            env.storage().temporary().set(&"should_fail", &should_fail);
         }
 
         /// Get the receipt that was verified
@@ -53,6 +58,15 @@ mod mock_verifier {
         fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError> {
             env.storage().temporary().set(&"called", &true);
             env.storage().temporary().set(&"receipt", &receipt);
+
+            let should_fail = env
+                .storage()
+                .temporary()
+                .get(&"should_fail")
+                .unwrap_or(false);
+            if should_fail {
+                return Err(VerifierError::InvalidProof);
+            }
             Ok(())
         }
     }
@@ -445,6 +459,28 @@ fn test_verify_routes_to_multiple_verifiers() {
 }
 
 #[test]
+fn test_verify_returns_verifier_error_on_failure() {
+    let (env, _admin, client) = setup_env();
+
+    let verifier_id = env.register(mock_verifier::MockVerifier, ());
+    let mock_client = mock_verifier::MockVerifierClient::new(&env, &verifier_id);
+    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
+    client.add_verifier(&selector, &verifier_id);
+
+    mock_client.set_should_fail(&true);
+
+    let seal = create_seal_with_selector(&env, &selector);
+    let image_id = BytesN::from_array(&env, &[0u8; 32]);
+    let journal_digest = BytesN::from_array(&env, &[1u8; 32]);
+
+    let result = client.try_verify(&seal, &image_id, &journal_digest);
+    assert_eq!(unwrap_verifier_error(result), VerifierError::InvalidProof);
+    // Failed sub-invocations roll back temporary storage writes in the verifier.
+    assert!(!mock_client.was_called());
+    assert!(mock_client.get_verified_receipt().is_none());
+}
+
+#[test]
 fn test_verify_integrity_routes_to_correct_verifier() {
     let (env, _admin, client) = setup_env();
 
@@ -505,6 +541,30 @@ fn test_verify_integrity_routes_to_multiple_verifiers() {
 
     assert!(mock_b.was_called());
     assert_eq!(mock_b.get_verified_receipt().unwrap().seal, receipt_b.seal);
+}
+
+#[test]
+fn test_verify_integrity_returns_verifier_error_on_failure() {
+    let (env, _admin, client) = setup_env();
+
+    let verifier_id = env.register(mock_verifier::MockVerifier, ());
+    let mock_client = mock_verifier::MockVerifierClient::new(&env, &verifier_id);
+    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
+    client.add_verifier(&selector, &verifier_id);
+
+    mock_client.set_should_fail(&true);
+
+    let claim_digest = BytesN::from_array(&env, &[0u8; 32]);
+    let receipt = Receipt {
+        seal: create_seal_with_selector(&env, &selector),
+        claim_digest: claim_digest.clone(),
+    };
+
+    let result = client.try_verify_integrity(&receipt);
+    assert_eq!(unwrap_verifier_error(result), VerifierError::InvalidProof);
+    // Failed sub-invocations roll back temporary storage writes in the verifier.
+    assert!(!mock_client.was_called());
+    assert!(mock_client.get_verified_receipt().is_none());
 }
 
 #[test]
