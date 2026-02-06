@@ -10,6 +10,10 @@ use stellar_macros::only_owner;
 #[cfg(test)]
 mod test;
 
+const DAY_IN_LEDGERS: u32 = 17_280;
+const VERIFIER_EXTEND_AMOUNT: u32 = 90 * DAY_IN_LEDGERS;
+const VERIFIER_TTL_THRESHOLD: u32 = VERIFIER_EXTEND_AMOUNT - DAY_IN_LEDGERS;
+
 #[contracttype]
 #[derive(Clone)]
 enum DataKey {
@@ -23,6 +27,16 @@ pub struct RiscZeroVerifierRouter;
 
 #[contractimpl]
 impl RiscZeroVerifierRouter {
+    /// Reads the verifier entry and refreshes its TTL using the router policy
+    /// when present.
+    fn read_verifier_entry(env: &Env, key: &DataKey) -> Option<VerifierEntry> {
+        env.storage().persistent().get(key).inspect(|_| {
+            env.storage()
+                .persistent()
+                .extend_ttl(key, VERIFIER_TTL_THRESHOLD, VERIFIER_EXTEND_AMOUNT);
+        })
+    }
+
     /// Initializes the router with the admin that can manage verifiers.
     pub fn __constructor(env: Env, owner: Address) {
         set_owner(&env, &owner);
@@ -72,7 +86,7 @@ impl RiscZeroVerifierRouter {
     /// Returns the verifier for a selector.
     fn get_verifier(env: &Env, selector: &BytesN<4>) -> Result<Address, VerifierError> {
         let key = DataKey::Verifier(selector.clone());
-        let verifier_address: Option<VerifierEntry> = env.storage().persistent().get(&key);
+        let verifier_address: Option<VerifierEntry> = Self::read_verifier_entry(env, &key);
 
         match verifier_address {
             Some(VerifierEntry::Tombstone) => Err(VerifierError::SelectorRemoved),
@@ -93,7 +107,7 @@ impl RiscZeroVerifierRouterInterface for RiscZeroVerifierRouter {
     /// tombstone).
     fn verifiers(env: Env, selector: BytesN<4>) -> Option<VerifierEntry> {
         let key = DataKey::Verifier(selector);
-        env.storage().persistent().get(&key)
+        Self::read_verifier_entry(&env, &key)
     }
 
     /// Returns the verifier for the selector stored in the seal prefix.
