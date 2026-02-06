@@ -31,9 +31,11 @@ impl RiscZeroVerifierRouter {
     /// when present.
     fn read_verifier_entry(env: &Env, key: &DataKey) -> Option<VerifierEntry> {
         env.storage().persistent().get(key).inspect(|_| {
-            env.storage()
-                .persistent()
-                .extend_ttl(key, VERIFIER_TTL_THRESHOLD, VERIFIER_EXTEND_AMOUNT);
+            env.storage().persistent().extend_ttl(
+                key,
+                VERIFIER_TTL_THRESHOLD,
+                VERIFIER_EXTEND_AMOUNT,
+            );
         })
     }
 
