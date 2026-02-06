@@ -2,7 +2,7 @@ use super::*;
 use risc0_interface::{Receipt, ReceiptClaim};
 use soroban_sdk::{
     Address, Bytes, BytesN, Env, IntoVal, Symbol, contract, contractimpl, symbol_short,
-    testutils::{Address as _, Ledger as _, storage::Persistent as _},
+    testutils::Address as _,
 };
 
 // =============================================================================
