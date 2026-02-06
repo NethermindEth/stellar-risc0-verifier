@@ -16,7 +16,7 @@
 //! 3. The receipt is submitted to a Soroban verifier contract for validation
 //! 4. The verifier cryptographically validates that the seal proves the claim
 
-use soroban_sdk::{Bytes, BytesN, Env, contracterror, contracttype};
+use soroban_sdk::{Address, Bytes, BytesN, Env, contracterror, contracttype};
 
 /// Errors that can occur during Groth16 proof verification.
 #[contracterror]
@@ -31,6 +31,14 @@ pub enum VerifierError {
     MalformedSeal = 2,
     /// The selector in the seal does not match this verifier.
     InvalidSelector = 3,
+    /// The contract has already been initialized.
+    AlreadyInitialized = 4,
+    /// The selector was removed and can no longer be assigned.
+    SelectorRemoved = 5,
+    /// The selector is already assigned to a verifier.
+    SelectorInUse = 6,
+    /// The selector is not registered.
+    SelectorUnknown = 7,
 }
 
 /// A receipt attesting to a claim using the RISC Zero proof system.
@@ -359,4 +367,21 @@ impl ReceiptClaim {
 
         env.crypto().sha256(&data).into()
     }
+}
+
+/// Router mapping entry for a verifier selector.
+///
+/// This enum represents the raw state stored in the router mapping:
+/// - `Active(Address)` means the selector routes to that verifier contract.
+/// - `Tombstone` means the selector was removed and can never be reused.
+///
+/// The router `verifiers` getter returns `None` when a selector has never been set,
+/// allowing callers to distinguish "unset" vs "removed" without relying on errors.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VerifierEntry {
+    /// Active verifier for the selector.
+    Active(Address),
+    /// Selector is permanently removed.
+    Tombstone,
 }

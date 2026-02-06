@@ -5,13 +5,17 @@
 //! ## Core Components
 //!
 //! - [`Receipt`]: Contains a seal (cryptographic proof) and a claim digest
+//! - [`RiscZeroVerifierInterface`]: Verifier contract interface
+//! - [`RiscZeroVerifierRouterInterface`]: Router contract interface
 
 #![no_std]
 
-use soroban_sdk::{Bytes, BytesN, Env, contractclient};
+use soroban_sdk::{Address, Bytes, BytesN, Env, contractclient};
 
 // Re-export types at crate root for convenience
-pub use types::{ExitCode, Output, Receipt, ReceiptClaim, SystemExitCode, VerifierError};
+pub use types::{
+    ExitCode, Output, Receipt, ReceiptClaim, SystemExitCode, VerifierEntry, VerifierError,
+};
 
 mod types;
 
@@ -139,4 +143,35 @@ pub trait RiscZeroVerifierInterface {
     /// verifier.verify_integrity(&env, receipt)?; // Returns Result<(), VerifierError>
     /// ```
     fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError>;
+}
+
+/// Router interface for a `RiscZeroVerifierRouter` contract.
+///
+/// This interface exposes verification entrypoints alongside read-only routing helpers.
+#[contractclient(name = "RiscZeroVerifierRouterClient")]
+pub trait RiscZeroVerifierRouterInterface {
+    /// Verifies a receipt from its components using the selector embedded in the seal.
+    ///
+    /// The router uses the first 4 bytes of the seal as a selector to dispatch to the
+    /// appropriate verifier.
+    fn verify(
+        env: Env,
+        seal: Bytes,
+        image_id: BytesN<32>,
+        journal: BytesN<32>,
+    ) -> Result<(), VerifierError>;
+
+    /// Verifies receipt integrity using the selector embedded in the seal.
+    fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError>;
+
+    /// Returns the raw verifier entry for a selector.
+    ///
+    /// `None` indicates the selector has never been set.
+    fn verifiers(env: Env, selector: BytesN<4>) -> Option<VerifierEntry>;
+
+    /// Returns the verifier address for a selector, reverting if unknown or removed.
+    fn get_verifier_by_selector(env: Env, selector: BytesN<4>) -> Result<Address, VerifierError>;
+
+    /// Returns the verifier address for the selector stored in the seal prefix.
+    fn get_verifier_from_seal(env: Env, seal: Bytes) -> Result<Address, VerifierError>;
 }
