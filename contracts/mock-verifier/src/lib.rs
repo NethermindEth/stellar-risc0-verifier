@@ -7,15 +7,27 @@ use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, Verifier
 #[cfg(test)]
 mod test;
 
+const DAY_IN_LEDGERS: u32 = 17_280;
+const VERIFIER_EXTEND_AMOUNT: u32 = 90 * DAY_IN_LEDGERS;
+const VERIFIER_TTL_THRESHOLD: u32 = VERIFIER_EXTEND_AMOUNT - DAY_IN_LEDGERS;
+
 #[contracttype]
 enum DataKey {
     Selector,
 }
 
 fn read_selector(env: &Env) -> Result<Bytes, VerifierError> {
+    let key = DataKey::Selector;
     env.storage()
         .persistent()
-        .get(&DataKey::Selector)
+        .get(&key)
+        .inspect(|_| {
+            env.storage().persistent().extend_ttl(
+                &key,
+                VERIFIER_TTL_THRESHOLD,
+                VERIFIER_EXTEND_AMOUNT,
+            );
+        })
         .ok_or(VerifierError::InvalidSelector)
 }
 
