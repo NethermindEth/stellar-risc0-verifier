@@ -109,6 +109,10 @@ impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
     }
 
     fn verify_integrity(env: Env, receipt: risc0_interface::Receipt) -> Result<(), VerifierError> {
+        if receipt.seal.len() < 4 {
+            return Err(VerifierError::MalformedSeal);
+        }
+
         let expected_selector = read_selector(&env)?;
         let selector = receipt.seal.slice(0..4);
 
