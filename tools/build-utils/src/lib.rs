@@ -57,8 +57,8 @@ fn fq_to_be_bytes(f: &Fq) -> [u8; 32] {
 pub fn hash_g1_point(p: &G1Affine) -> Sha256Digest {
     let (x, y) = p.xy().unwrap();
     let mut buffer = Vec::with_capacity(64);
-    buffer.extend_from_slice(&fq_to_be_bytes(x));
-    buffer.extend_from_slice(&fq_to_be_bytes(y));
+    buffer.extend_from_slice(&fq_to_be_bytes(&x));
+    buffer.extend_from_slice(&fq_to_be_bytes(&y));
     Sha256::digest(&buffer).into()
 }
 

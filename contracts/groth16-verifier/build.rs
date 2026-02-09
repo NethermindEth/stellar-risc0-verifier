@@ -186,8 +186,8 @@ fn serialize_g1_point(p: &G1Affine) -> [u8; 64] {
 
     let (x, y) = p.xy().unwrap();
 
-    let x_bytes = fq_to_be_bytes(x);
-    let y_bytes = fq_to_be_bytes(y);
+    let x_bytes = fq_to_be_bytes(&x);
+    let y_bytes = fq_to_be_bytes(&y);
 
     buf[0..32].copy_from_slice(&x_bytes);
     buf[32..64].copy_from_slice(&y_bytes);
