@@ -15,23 +15,20 @@ repository = "https://github.com/NethermindEth/stellar-risc0-verifier"
 license = "Apache-2.0"
 
 [workspace.dependencies]
-ark-bn254 = "=0.4.0"
-ark-ec = "=0.4.2"
-ark-ff = "=0.4.2"
-soroban-sdk = { git = "https://github.com/stellar/rs-soroban-sdk", branch = "release/v25-preview" }
-ark-serialize = "=0.4.2"
+ark-bn254 = "0.5.0"
+ark-ec = "0.5.0"
+ark-ff = "0.5.0"
+soroban-sdk = "25.1.0"
+ark-serialize = "0.5.0"
 hex = "0.4.3"
 serde = "1.0.228"
 serde_json = "1.0.145"
 sha2 = "0.10.9"
-stellar-access = { git = "https://github.com/OpenZeppelin/stellar-contracts", tag = "v0.6.0" }
-stellar-macros = { git = "https://github.com/OpenZeppelin/stellar-contracts", tag = "v0.6.0" }
+stellar-access = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
+stellar-macros = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
 
 build-utils = { path = "tools/build-utils" }
 risc0-interface = { path = "contracts/interface"}
-
-[patch.crates-io]
-soroban-sdk = { git = "https://github.com/stellar/rs-soroban-sdk", branch = "release/v25-preview" }
 
 [workspace.lints.rust]
 missing_docs = "deny"
