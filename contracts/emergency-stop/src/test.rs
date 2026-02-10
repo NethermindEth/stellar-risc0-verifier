@@ -2,9 +2,7 @@ extern crate std;
 
 use risc0_interface::{Receipt, RiscZeroVerifierInterface, VerifierError};
 use soroban_sdk::{
-    contract, contractimpl, contracttype,
-    testutils::Address as _,
-    Address, Bytes, BytesN, Env,
+    Address, Bytes, BytesN, Env, contract, contractimpl, contracttype, testutils::Address as _,
 };
 
 use crate::{RiscZeroVerifierEmergencyStop, RiscZeroVerifierEmergencyStopClient};
@@ -20,7 +18,10 @@ enum MockKey {
 #[contractimpl]
 impl MockVerifier {
     pub fn integrity_called(env: Env) -> bool {
-        env.storage().instance().get(&MockKey::IntegrityCalled).unwrap_or(false)
+        env.storage()
+            .instance()
+            .get(&MockKey::IntegrityCalled)
+            .unwrap_or(false)
     }
 }
 
@@ -38,7 +39,9 @@ impl RiscZeroVerifierInterface for MockVerifier {
     }
 
     fn verify_integrity(env: Env, _receipt: Receipt) -> Result<(), VerifierError> {
-        env.storage().instance().set(&MockKey::IntegrityCalled, &true);
+        env.storage()
+            .instance()
+            .set(&MockKey::IntegrityCalled, &true);
         Ok(())
     }
 }
