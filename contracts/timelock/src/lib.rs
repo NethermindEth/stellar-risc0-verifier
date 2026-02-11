@@ -236,6 +236,10 @@ impl CustomAccountInterface for TimelockController {
         context_meta: Vec<OperationMeta>,
         auth_contexts: Vec<Context>,
     ) -> Result<(), Self::Error> {
+        if auth_contexts.len() != context_meta.len() {
+            panic_with_error!(&e, TimelockError::Unauthorized);
+        }
+
         for (context, meta) in auth_contexts.iter().zip(context_meta) {
             match context.clone() {
                 Context::Contract(ContractContext {
