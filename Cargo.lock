@@ -1854,7 +1854,7 @@ dependencies = [
 
 [[package]]
 name = "timelock"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "risc0-interface",
  "soroban-sdk",
