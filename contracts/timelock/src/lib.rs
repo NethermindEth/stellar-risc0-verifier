@@ -114,8 +114,8 @@ use stellar_access::access_control::{
     set_role_admin_no_auth,
 };
 use stellar_governance::timelock::{
-    Operation, OperationState, TimelockError, cancel_operation, execute_operation,
-    get_min_delay as timelock_get_min_delay, get_operation_state, get_timestamp,
+    DONE_TIMESTAMP, Operation, OperationState, TimelockError, TimelockStorageKey, cancel_operation,
+    execute_operation, get_min_delay as timelock_get_min_delay, get_operation_state, get_timestamp,
     hash_operation as timelock_hash_operation, is_operation_done, is_operation_pending,
     is_operation_ready, operation_exists, schedule_operation, set_execute_operation,
     set_min_delay as timelock_set_min_delay,
@@ -512,20 +512,14 @@ impl TimelockController {
         let batch_id =
             hash_operation_batch_inner(e, &targets, &functions, &args_list, &predecessor, &salt);
 
+        schedule_operation_id_inner(e, &batch_id, delay);
+
         for i in 0..targets.len() {
             let target = targets.get(i).unwrap();
             let function = functions.get(i).unwrap();
             let args = args_list.get(i).unwrap();
             let predecessor = predecessor.clone();
             let salt = salt.clone();
-            let operation = Operation {
-                target: target.clone(),
-                function: function.clone(),
-                args: args.clone(),
-                predecessor: predecessor.clone(),
-                salt: salt.clone(),
-            };
-            schedule_operation(e, &operation, delay);
             BatchCallScheduled {
                 id: batch_id.clone(),
                 index: i,
@@ -585,6 +579,8 @@ impl TimelockController {
             executor.require_auth();
         }
 
+        set_execute_operation_id_inner(e, &batch_id, &predecessor);
+
         let mut results = Vec::new(e);
         for i in 0..targets.len() {
             let target = targets.get(i).unwrap();
@@ -592,14 +588,7 @@ impl TimelockController {
             let args = args_list.get(i).unwrap();
             let predecessor = predecessor.clone();
             let salt = salt.clone();
-            let operation = Operation {
-                target: target.clone(),
-                function: function.clone(),
-                args: args.clone(),
-                predecessor: predecessor.clone(),
-                salt: salt.clone(),
-            };
-            let result = execute_operation(e, &operation);
+            let result = e.invoke_contract::<Val>(&target, &function, args.clone());
             results.push_back(result);
             BatchCallExecuted {
                 id: batch_id.clone(),
@@ -814,6 +803,36 @@ fn emit_call_salt(e: &Env, id: &BytesN<32>, salt: &BytesN<32>) {
 
 fn is_zero_bytes32(e: &Env, value: &BytesN<32>) -> bool {
     *value == BytesN::<32>::from_array(e, &[0u8; 32])
+}
+
+fn schedule_operation_id_inner(e: &Env, operation_id: &BytesN<32>, delay: u32) {
+    if operation_exists(e, operation_id) {
+        panic_with_error!(e, TimelockError::OperationAlreadyScheduled);
+    }
+
+    let min_delay = timelock_get_min_delay(e);
+    if delay < min_delay {
+        panic_with_error!(e, TimelockError::InsufficientDelay);
+    }
+
+    let current_timestamp = e.ledger().timestamp();
+    let ready_timestamp = current_timestamp + (delay as u64);
+    let key = TimelockStorageKey::Timestamp(operation_id.clone());
+    e.storage().persistent().set(&key, &ready_timestamp);
+}
+
+fn set_execute_operation_id_inner(e: &Env, operation_id: &BytesN<32>, predecessor: &BytesN<32>) {
+    if !is_operation_ready(e, operation_id) {
+        panic_with_error!(e, TimelockError::InvalidOperationState);
+    }
+
+    let no_predecessor = BytesN::<32>::from_array(e, &[0u8; 32]);
+    if *predecessor != no_predecessor && !is_operation_done(e, predecessor) {
+        panic_with_error!(e, TimelockError::UnexecutedPredecessor);
+    }
+
+    let key = TimelockStorageKey::Timestamp(operation_id.clone());
+    e.storage().persistent().set(&key, &DONE_TIMESTAMP);
 }
 
 // Expose role management functions via AccessControl trait

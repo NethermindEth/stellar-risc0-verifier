@@ -728,6 +728,111 @@ fn test_update_delay_self_admin_flow() {
     assert!(timelock.is_operation_done(&op_id));
 }
 
+#[test]
+fn test_check_auth_rejects_context_meta_length_mismatch() {
+    let e = Env::default();
+
+    let proposer = Address::generate(&e);
+    let executor = Address::generate(&e);
+
+    let timelock_id = e.register(
+        TimelockController,
+        (
+            60u32,
+            vec![&e, proposer.clone()],
+            vec![&e, executor.clone()],
+            None::<Address>,
+        ),
+    );
+    let timelock = TimelockControllerClient::new(&e, &timelock_id);
+
+    let new_delay = 120u32;
+    let args: Vec<Val> = vec![&e, new_delay.into_val(&e)];
+    let mismatch_args: Vec<Val> = vec![&e, 999u32.into_val(&e)];
+    let predecessor = zero_bytes(&e);
+    let salt = zero_bytes(&e);
+
+    let op_id = timelock
+        .mock_auths(&[MockAuth {
+            address: &proposer,
+            invoke: &MockAuthInvoke {
+                contract: &timelock_id,
+                fn_name: "schedule_op",
+                args: (
+                    timelock_id.clone(),
+                    Symbol::new(&e, "update_delay"),
+                    args.clone(),
+                    predecessor.clone(),
+                    salt.clone(),
+                    60u32,
+                    proposer.clone(),
+                )
+                    .into_val(&e),
+                sub_invokes: &[],
+            },
+        }])
+        .schedule_op(
+            &timelock_id,
+            &Symbol::new(&e, "update_delay"),
+            &args,
+            &predecessor,
+            &salt,
+            &60u32,
+            &proposer,
+        );
+
+    e.ledger().with_mut(|li| li.timestamp += 61);
+
+    e.mock_auths(&[MockAuth {
+        address: &executor,
+        invoke: &MockAuthInvoke {
+            contract: &timelock_id,
+            fn_name: "__check_auth",
+            args: (
+                Symbol::new(&e, "execute_op"),
+                timelock_id.clone(),
+                Symbol::new(&e, "update_delay"),
+                args.clone(),
+                predecessor.clone(),
+                salt.clone(),
+            )
+                .into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    let Err(Ok(err)) = e.try_invoke_contract_check_auth::<TimelockError>(
+        &timelock_id,
+        &BytesN::random(&e),
+        vec![
+            &e,
+            OperationMeta {
+                predecessor: predecessor.clone(),
+                salt: salt.clone(),
+                executor: Some(executor),
+            },
+        ]
+        .into_val(&e),
+        &vec![
+            &e,
+            Context::Contract(ContractContext {
+                contract: timelock_id.clone(),
+                fn_name: Symbol::new(&e, "update_delay"),
+                args,
+            }),
+            Context::Contract(ContractContext {
+                contract: timelock_id.clone(),
+                fn_name: Symbol::new(&e, "update_delay"),
+                args: mismatch_args,
+            }),
+        ],
+    ) else {
+        panic!("expected Unauthorized");
+    };
+    assert_eq!(err, TimelockError::Unauthorized.into());
+    assert!(!timelock.is_operation_done(&op_id));
+}
+
 // ============================================================================
 // Hash Operation Tests
 // ============================================================================
@@ -1008,6 +1113,7 @@ fn test_schedule_batch() {
     let expected_batch_id =
         timelock.hash_operation_batch(&targets, &functions, &args_list, &predecessor, &salt);
     assert_eq!(batch_id, expected_batch_id);
+    assert!(timelock.operation_exists(&batch_id));
 
     let op1_id = timelock.hash_operation(
         &target.address,
@@ -1024,8 +1130,8 @@ fn test_schedule_batch() {
         &salt,
     );
 
-    assert!(timelock.operation_exists(&op1_id));
-    assert!(timelock.operation_exists(&op2_id));
+    assert!(!timelock.operation_exists(&op1_id));
+    assert!(!timelock.operation_exists(&op2_id));
 }
 
 #[test]
@@ -1040,7 +1146,7 @@ fn test_execute_batch() {
     let (targets, functions, args_list, args1, args2) =
         batch_two_calls(&e, &target.address, 10, 20);
 
-    timelock.schedule_batch(
+    let batch_id = timelock.schedule_batch(
         &targets,
         &functions,
         &args_list,
@@ -1062,6 +1168,7 @@ fn test_execute_batch() {
     );
 
     assert_eq!(target.get_value(), 20);
+    assert!(timelock.is_operation_done(&batch_id));
 
     let op1_id = timelock.hash_operation(
         &target.address,
@@ -1078,8 +1185,66 @@ fn test_execute_batch() {
         &salt,
     );
 
-    assert!(timelock.is_operation_done(&op1_id));
-    assert!(timelock.is_operation_done(&op2_id));
+    assert!(!timelock.operation_exists(&op1_id));
+    assert!(!timelock.operation_exists(&op2_id));
+}
+
+#[test]
+fn test_batch_id_can_be_used_as_predecessor() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (timelock, target, _, proposer, executor) = setup_with_external_admin(&e);
+
+    let predecessor = zero_bytes(&e);
+    let batch_salt = salt_from_u8(&e, 1);
+    let next_salt = salt_from_u8(&e, 2);
+    let (targets, functions, args_list, _args1, _args2) =
+        batch_two_calls(&e, &target.address, 10, 20);
+
+    let batch_id = timelock.schedule_batch(
+        &targets,
+        &functions,
+        &args_list,
+        &predecessor,
+        &batch_salt,
+        &100u32,
+        &proposer,
+    );
+
+    let args3: Vec<Val> = vec![&e, 30u32.into_val(&e)];
+    timelock.schedule_op(
+        &target.address,
+        &symbol_short!("set_value"),
+        &args3,
+        &batch_id,
+        &next_salt,
+        &100u32,
+        &proposer,
+    );
+
+    e.ledger().set_timestamp(e.ledger().timestamp() + 101);
+
+    timelock.execute_batch(
+        &targets,
+        &functions,
+        &args_list,
+        &predecessor,
+        &batch_salt,
+        &Some(executor.clone()),
+    );
+
+    timelock.execute_op(
+        &target.address,
+        &symbol_short!("set_value"),
+        &args3,
+        &batch_id,
+        &next_salt,
+        &Some(executor),
+    );
+
+    assert!(timelock.is_operation_done(&batch_id));
+    assert_eq!(target.get_value(), 30);
 }
 
 #[test]
@@ -1164,8 +1329,8 @@ fn test_call_salt_emitted_for_schedule_batch() {
     );
     let after = e.events().all().events().len();
 
-    // 2x OperationScheduled + 2x BatchCallScheduled + CallSalt
-    assert_eq!(after, before + 5);
+    // 2x BatchCallScheduled + CallSalt
+    assert_eq!(after, before + 3);
 }
 
 #[test]
@@ -1202,8 +1367,8 @@ fn test_execute_batch_emits_events() {
     );
     let after = e.events().all().events().len();
 
-    // 2x OperationExecuted + 2x BatchCallExecuted
-    assert_eq!(after, 4);
+    // 2x BatchCallExecuted
+    assert_eq!(after, 2);
 }
 
 #[test]
