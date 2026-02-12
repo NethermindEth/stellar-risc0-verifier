@@ -470,6 +470,15 @@ query_paused() {
     [[ "$result" == "true" ]]
 }
 
+capitalize_first() {
+    local input="$1"
+    if [[ -z "$input" ]]; then
+        printf ''
+        return
+    fi
+    printf '%s%s' "$(printf '%s' "${input:0:1}" | tr '[:lower:]' '[:upper:]')" "${input:1}"
+}
+
 # ┌──────────────────────────────────────────────────────────────────────────────┐
 # │                              Role Pre-validation                            │
 # └──────────────────────────────────────────────────────────────────────────────┘
@@ -481,7 +490,7 @@ validate_role() {
     if ! query_has_role "$timelock_id" "$account_addr" "$role"; then
         fatal "Account ${BOLD_WHITE}$account_addr${RESET} does not have the ${BOLD_YELLOW}$role${RESET} role on timelock ${DIM}$timelock_id${RESET}"
     fi
-    success "${role^} role verified"
+    success "$(capitalize_first "$role") role verified"
 }
 
 validate_proposer() { validate_role "$1" "$2" "proposer"; }
@@ -656,4 +665,3 @@ args_role_with_caller() {
 args_grant_role() { args_role_with_caller "$@"; }
 
 args_revoke_role() { args_role_with_caller "$@"; }
-
