@@ -295,6 +295,11 @@ resolve_verifier_estop_from_config() {
     config_get_verifier_field "$CHAIN_KEY" "$selector" estop 2>/dev/null || echo ""
 }
 
+resolve_verifier_contract_from_config() {
+    local selector="$1"
+    config_get_verifier_field "$CHAIN_KEY" "$selector" verifier 2>/dev/null || echo ""
+}
+
 parse_operation_id_from_file() {
     strip_stellar_quotes < "$1"
 }
@@ -312,13 +317,24 @@ resolve_delay() {
 require_verifier_estop() {
     local selector="$1"
     local verifier_estop="$2"
-    if [[ -z "$verifier_estop" ]]; then
-        verifier_estop=$(resolve_verifier_estop_from_config "$selector")
-        if [[ -z "$verifier_estop" ]]; then
-            fatal "No estop address found for selector '$selector'. Provide --verifier-estop."
-        fi
+    if [[ -n "$verifier_estop" ]]; then
+        echo "$verifier_estop"
+        return 0
     fi
-    echo "$verifier_estop"
+
+    verifier_estop=$(resolve_verifier_estop_from_config "$selector")
+    if [[ -n "$verifier_estop" ]]; then
+        echo "$verifier_estop"
+        return 0
+    fi
+
+    verifier_estop=$(resolve_verifier_contract_from_config "$selector")
+    if [[ -n "$verifier_estop" ]]; then
+        echo "$verifier_estop"
+        return 0
+    fi
+
+    return 1
 }
 
 schedule_operation_and_report() {

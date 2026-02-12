@@ -2,13 +2,13 @@
 
 cmd_schedule_add_verifier() {
     local selector=""
-    local verifier_estop=""
+    local verifier_target=""
     local delay=""
     local salt="$ZERO32"
 
     parse_subcmd_flags "schedule-add-verifier" \
         --selector selector \
-        --verifier-estop verifier_estop \
+        --verifier-estop verifier_target \
         --delay delay \
         --salt salt
 
@@ -17,14 +17,16 @@ cmd_schedule_add_verifier() {
 
     setup_with_router
 
-    verifier_estop=$(require_verifier_estop "$selector" "$verifier_estop")
+    if ! verifier_target=$(require_verifier_estop "$selector" "$verifier_target"); then
+        fatal "No estop/verifier address found for selector '$selector'. Provide --verifier-estop."
+    fi
     delay=$(resolve_delay "$delay")
 
     print_section "Schedule: Add Verifier"
     info "Router: ${DIM}$ROUTER_ID${RESET}"
     info "Timelock: ${DIM}$TIMELOCK_ID${RESET}"
     kv "Selector" "$selector" "$CYAN" "$BOLD_YELLOW"
-    kv "Verifier (estop)" "$verifier_estop" "$CYAN" "$WHITE"
+    kv "Verifier target" "$verifier_target" "$CYAN" "$WHITE"
     kv "Delay" "${delay}s" "$CYAN" "$BOLD_WHITE"
 
     # Precondition checks
@@ -34,7 +36,7 @@ cmd_schedule_add_verifier() {
     mainnet_warning
 
     local args_json
-    args_json=$(args_add_verifier "$selector" "$verifier_estop")
+    args_json=$(args_add_verifier "$selector" "$verifier_target")
 
     schedule_operation_and_report "$ROUTER_ID" "add_verifier" "$args_json" "$delay" "$salt" \
         "${TMP_DIR}/manage_schedule_add.txt"
@@ -51,13 +53,13 @@ cmd_schedule_add_verifier() {
 
 cmd_execute_add_verifier() {
     local selector=""
-    local verifier_estop=""
+    local verifier_target=""
     local predecessor="$ZERO32"
     local salt="$ZERO32"
 
     parse_subcmd_flags "execute-add-verifier" \
         --selector selector \
-        --verifier-estop verifier_estop \
+        --verifier-estop verifier_target \
         --predecessor predecessor \
         --salt salt
 
@@ -66,19 +68,21 @@ cmd_execute_add_verifier() {
 
     setup_with_router
 
-    verifier_estop=$(require_verifier_estop "$selector" "$verifier_estop")
+    if ! verifier_target=$(require_verifier_estop "$selector" "$verifier_target"); then
+        fatal "No estop/verifier address found for selector '$selector'. Provide --verifier-estop."
+    fi
 
     print_section "Execute: Add Verifier"
     info "Router: ${DIM}$ROUTER_ID${RESET}"
     info "Timelock: ${DIM}$TIMELOCK_ID${RESET}"
     kv "Selector" "$selector" "$CYAN" "$BOLD_YELLOW"
-    kv "Verifier (estop)" "$verifier_estop" "$CYAN" "$WHITE"
+    kv "Verifier target" "$verifier_target" "$CYAN" "$WHITE"
 
     # Precondition checks
     validate_executor "$TIMELOCK_ID" "$DEPLOYER_ADDRESS"
 
     local args_json
-    args_json=$(args_add_verifier "$selector" "$verifier_estop")
+    args_json=$(args_add_verifier "$selector" "$verifier_target")
 
     prepare_execute_operation "$ROUTER_ID" "add_verifier" "$args_json" "$predecessor" "$salt"
 
