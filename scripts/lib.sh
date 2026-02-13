@@ -215,6 +215,256 @@ execute_self_admin_op() {
     fi
 }
 
+# Execute a self-admin timelock operation using an explicit auth-entry flow.
+#   execute_self_admin_op_auth <output_base> <spinner_msg> <predecessor> <salt> <direct_call_args...>
+#
+# Builds a transaction envelope for a direct timelock self-call, simulates it to
+# attach Soroban auth/resource data, injects OperationMeta custom-account
+# signature data, signs it with the source account, and sends it to the network.
+execute_self_admin_op_auth() {
+    local output_base="$1"
+    local spinner_msg="$2"
+    local predecessor="$3"
+    local salt="$4"
+    shift 4
+
+    local build_file="${TMP_DIR}/${output_base}_build.txt"
+    local simulate_file="${TMP_DIR}/${output_base}_simulate.txt"
+    local resimulate_file="${TMP_DIR}/${output_base}_resimulate.txt"
+    local decode_file="${TMP_DIR}/${output_base}_decode.json"
+    local patched_json_file="${TMP_DIR}/${output_base}_patched.json"
+    local patch_log_file="${TMP_DIR}/${output_base}_patch.log"
+    local encode_file="${TMP_DIR}/${output_base}_encode.txt"
+    local sign_file="${TMP_DIR}/${output_base}_sign.txt"
+    local send_file="${TMP_DIR}/${output_base}_send.txt"
+
+    run_stellar_op "$build_file" \
+        "Building self-admin transaction..." \
+        "Failed to build self-admin transaction!" \
+        stellar contract invoke \
+        --id "$TIMELOCK_ID" \
+        --source "$ACCOUNT" \
+        --network "$NETWORK" \
+        --build-only \
+        -- \
+        "$@"
+
+    local build_xdr
+    build_xdr=$(tail -n 1 "$build_file")
+    if [[ -z "$build_xdr" ]]; then
+        fatal "Failed to capture built transaction envelope"
+    fi
+
+    local latest_ledger
+    latest_ledger=$(
+        stellar network health --network "$NETWORK" 2>&1 \
+            | sed -nE 's/.*Latest ledger: ([0-9]+).*/\1/p' \
+            | tail -n 1
+    )
+    if [[ -z "$latest_ledger" ]]; then
+        fatal "Failed to determine latest ledger for self-admin signature expiration"
+    fi
+
+    local signature_ledger_buffer="${SELF_ADMIN_SIGNATURE_LEDGER_BUFFER:-1000}"
+    if [[ ! "$signature_ledger_buffer" =~ ^[0-9]+$ ]]; then
+        fatal "Invalid SELF_ADMIN_SIGNATURE_LEDGER_BUFFER '${signature_ledger_buffer}' (must be a non-negative integer)"
+    fi
+
+    local signature_expiration_ledger=$((latest_ledger + signature_ledger_buffer))
+
+    # Retry with larger instruction leeway if the network reports ResourceLimitExceeded.
+    local -a leeway_attempts=(
+        "${SELF_ADMIN_INSTRUCTION_LEEWAY:-5000000}"
+        "${SELF_ADMIN_MAX_INSTRUCTION_LEEWAY:-50000000}"
+    )
+
+    local attempt=0
+    local send_status=0
+    while [[ $attempt -lt ${#leeway_attempts[@]} ]]; do
+        local leeway="${leeway_attempts[$attempt]}"
+        local simulate_msg="Simulating self-admin transaction..."
+        local -a simulate_cmd=(
+            stellar tx simulate
+            --network "$NETWORK"
+            --source-account "$ACCOUNT"
+        )
+        if [[ "$leeway" != "0" ]]; then
+            if [[ $attempt -eq 0 ]]; then
+                simulate_msg="Simulating self-admin transaction (instruction leeway: ${leeway})..."
+            else
+                simulate_msg="Re-simulating self-admin transaction (instruction leeway: ${leeway})..."
+            fi
+            simulate_cmd+=(--instruction-leeway "$leeway")
+        fi
+
+        run_stellar_op "$simulate_file" \
+            "$simulate_msg" \
+            "Self-admin simulation failed!" \
+            "${simulate_cmd[@]}" \
+            "$build_xdr"
+
+        local simulated_xdr
+        simulated_xdr=$(tail -n 1 "$simulate_file")
+        if [[ -z "$simulated_xdr" ]]; then
+            fatal "Failed to capture simulated transaction envelope"
+        fi
+
+        run_stellar_op "$decode_file" \
+            "Decoding self-admin transaction..." \
+            "Failed to decode self-admin transaction!" \
+            stellar tx decode \
+            --output json \
+            "$simulated_xdr"
+
+        if ! python3 - "$decode_file" "$TIMELOCK_ID" "$DEPLOYER_ADDRESS" "$predecessor" "$salt" "$signature_expiration_ledger" \
+            > "$patched_json_file" 2> "$patch_log_file" <<'PY'
+import json
+import sys
+
+decode_path, timelock_id, executor_addr, predecessor, salt, sig_exp_ledger = sys.argv[1:]
+sig_exp_ledger = int(sig_exp_ledger)
+
+with open(decode_path, "r", encoding="utf-8") as infile:
+    tx = json.load(infile)
+
+op = tx["tx"]["tx"]["operations"][0]["body"]["invoke_host_function"]
+invoke_contract = op["host_function"]["invoke_contract"]
+fn_name = invoke_contract["function_name"]
+fn_args = invoke_contract["args"]
+auth = op.get("auth", [])
+if not auth:
+    raise ValueError("missing Soroban auth entries")
+
+address_credentials = auth[0].get("credentials", {}).get("address")
+if address_credentials is None:
+    raise ValueError("first auth entry is not address credentials")
+
+address_credentials["signature_expiration_ledger"] = sig_exp_ledger
+address_credentials["signature"] = {
+    "vec": [
+        {
+            "map": [
+                {"key": {"symbol": "executor"}, "val": {"address": executor_addr}},
+                {"key": {"symbol": "predecessor"}, "val": {"bytes": predecessor}},
+                {"key": {"symbol": "salt"}, "val": {"bytes": salt}},
+            ]
+        }
+    ]
+}
+
+# Ensure executor auth for require_auth_for_args() in __check_auth.
+auth = [
+    auth_entry
+    for auth_entry in auth
+    if not (
+        auth_entry.get("credentials") == "source_account"
+        and auth_entry.get("root_invocation", {})
+        .get("function", {})
+        .get("contract_fn", {})
+        .get("function_name")
+        == "__check_auth"
+    )
+]
+auth.append(
+    {
+        "credentials": "source_account",
+        "root_invocation": {
+            "function": {
+                "contract_fn": {
+                    "contract_address": timelock_id,
+                    "function_name": "__check_auth",
+                    "args": [
+                        {"symbol": "execute_op"},
+                        {"address": timelock_id},
+                        {"symbol": fn_name},
+                        {"vec": fn_args},
+                        {"bytes": predecessor},
+                        {"bytes": salt},
+                    ],
+                }
+            },
+            "sub_invocations": [],
+        },
+    }
+)
+op["auth"] = auth
+
+json.dump(tx, sys.stdout, separators=(",", ":"))
+PY
+        then
+            error "Failed to inject self-admin auth metadata!"
+            print_output "$(cat "$patch_log_file")"
+            print_section_end
+            exit 1
+        fi
+
+        run_stellar_op "$encode_file" \
+            "Encoding self-admin transaction..." \
+            "Failed to encode self-admin transaction!" \
+            stellar tx encode \
+            "$patched_json_file"
+
+        local patched_xdr
+        patched_xdr=$(tail -n 1 "$encode_file")
+        if [[ -z "$patched_xdr" ]]; then
+            fatal "Failed to capture patched transaction envelope"
+        fi
+
+        run_stellar_op "$resimulate_file" \
+            "Re-simulating self-admin transaction with injected auth..." \
+            "Self-admin auth re-simulation failed!" \
+            "${simulate_cmd[@]}" \
+            "$patched_xdr"
+
+        local rebudgeted_xdr
+        rebudgeted_xdr=$(tail -n 1 "$resimulate_file")
+        if [[ -z "$rebudgeted_xdr" ]]; then
+            fatal "Failed to capture re-simulated transaction envelope"
+        fi
+
+        run_stellar_op "$sign_file" \
+            "Signing self-admin transaction..." \
+            "Signing self-admin transaction failed!" \
+            stellar tx sign \
+            --network "$NETWORK" \
+            --sign-with-key "$ACCOUNT" \
+            "$rebudgeted_xdr"
+
+        local signed_xdr
+        signed_xdr=$(tail -n 1 "$sign_file")
+        if [[ -z "$signed_xdr" ]]; then
+            fatal "Failed to capture signed transaction envelope"
+        fi
+
+        stellar tx send \
+            --network "$NETWORK" \
+            "$signed_xdr" \
+            > "$send_file" 2>&1 &
+        local pid=$!
+        send_status=0
+        spinner "$pid" "$spinner_msg" || send_status=$?
+        if [[ $send_status -eq 0 ]]; then
+            return 0
+        fi
+
+        if ! grep -q "ResourceLimitExceeded" "$send_file"; then
+            break
+        fi
+        if [[ $attempt -ge $((${#leeway_attempts[@]} - 1)) ]]; then
+            break
+        fi
+
+        local next_leeway="${leeway_attempts[$((attempt + 1))]}"
+        warn "Resource limit exceeded; retrying with instruction leeway ${next_leeway}"
+        attempt=$((attempt + 1))
+    done
+
+    error "Self-admin transaction failed!"
+    print_output "$(cat "$send_file")"
+    print_section_end
+    exit 1
+}
+
 # ┌──────────────────────────────────────────────────────────────────────────────┐
 # │                              Validation Functions                           │
 # └──────────────────────────────────────────────────────────────────────────────┘
@@ -494,6 +744,7 @@ validate_role() {
 }
 
 validate_proposer() { validate_role "$1" "$2" "proposer"; }
+validate_bootstrap() { validate_role "$1" "$2" "bootstrap"; }
 
 validate_executor() {
     local timelock_id="$1"
@@ -569,7 +820,11 @@ compute_operation_id() {
     local args_json="$3"
     local predecessor="$4"
     local salt="$5"
-    stellar_query "$TIMELOCK_ID" \
+    stellar contract invoke \
+        --id "$TIMELOCK_ID" \
+        --source "$ACCOUNT" \
+        --network "$NETWORK" \
+        -- \
         hash_operation \
         --target "$target" \
         --function "$function_name" \
@@ -589,10 +844,7 @@ schedule_timelock_op() {
     local delay="$5"
     local salt="$6"
     local output_file="$7"
-    run_stellar_op "$output_file" \
-        "Scheduling ${function_name//_/-} operation..." \
-        "Schedule failed!" \
-        stellar contract invoke \
+    stellar contract invoke \
         --id "$TIMELOCK_ID" \
         --source "$ACCOUNT" \
         --network "$NETWORK" \
@@ -604,7 +856,35 @@ schedule_timelock_op() {
         --predecessor "$predecessor" \
         --salt "$salt" \
         --delay "$delay" \
-        --proposer "$DEPLOYER_JSON"
+        --proposer "$DEPLOYER_JSON" \
+        > "$output_file" 2>&1 &
+    local pid=$!
+    local status=0
+    spinner "$pid" "Scheduling ${function_name//_/-} operation..." || status=$?
+
+    if [[ $status -ne 0 ]]; then
+        error "Schedule failed!"
+        print_output "$(cat "$output_file")"
+
+        # TimelockError::OperationAlreadyScheduled = #4000.
+        if grep -q "Error(Contract, #4000)" "$output_file"; then
+            warn "This operation hash is already scheduled (same target/function/args/predecessor/salt)."
+            local existing_op_id=""
+            local existing_state=""
+            if existing_op_id=$(compute_operation_id "$target" "$function_name" "$args_json" "$predecessor" "$salt" 2>/dev/null); then
+                info "Existing Operation ID: ${DIM}${existing_op_id}${RESET}"
+                if existing_state=$(query_operation_state "$TIMELOCK_ID" "$existing_op_id" 2>/dev/null); then
+                    info "Existing operation state: ${BOLD_WHITE}${existing_state}${RESET}"
+                fi
+            fi
+            info "Use a unique 32-byte hex salt when scheduling, then pass the same --salt on execute."
+            info "Use a value containing hex letters (a-f); numeric-only salts may be rejected by the parser."
+            info "Example: ${CYAN}--salt abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890${RESET}"
+        fi
+
+        print_section_end
+        exit 1
+    fi
 }
 
 # Execute a timelock operation targeting a contract (e.g. the router).

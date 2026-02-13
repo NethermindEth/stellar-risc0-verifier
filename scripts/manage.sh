@@ -360,7 +360,20 @@ prepare_execute_operation() {
     local salt="$5"
 
     local op_id
-    op_id=$(compute_operation_id "$target" "$function_name" "$args_json" "$predecessor" "$salt")
+    local compute_err_file="${TMP_DIR}/manage_compute_op_id_err.txt"
+    if ! op_id=$(compute_operation_id "$target" "$function_name" "$args_json" "$predecessor" "$salt" 2>"$compute_err_file"); then
+        error "Failed to compute operation ID!"
+        print_output "$(cat "$compute_err_file")"
+        if grep -q "Failed to parse argument 'salt'" "$compute_err_file"; then
+            warn "Invalid --salt format for Stellar CLI parser."
+            info "Use a 32-byte hex value (64 chars) that includes at least one hex letter (a-f)."
+            info "Numeric-only salts like 1111... may be rejected by the parser."
+            info "Example: ${CYAN}--salt abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890${RESET}"
+        fi
+        print_section_end
+        exit 1
+    fi
+
     info "Operation ID: ${DIM}$op_id${RESET}"
     check_operation_ready "$TIMELOCK_ID" "$op_id"
     mainnet_warning

@@ -1,4 +1,4 @@
-# Self-administration commands: schedule/execute update-delay, grant-role, revoke-role
+# Self-administration commands: schedule/execute update-delay, schedule/execute grant-role, revoke-role
 
 cmd_schedule_update_delay() {
     local new_delay=""
@@ -58,9 +58,9 @@ cmd_execute_update_delay() {
 
     prepare_execute_operation "$TIMELOCK_ID" "update_delay" "$args_json" "$predecessor" "$salt"
 
-    execute_self_admin_op "manage_execute_delay" \
+    execute_self_admin_op_auth "manage_execute_delay" \
         "Executing update-delay..." \
-        "update_delay" "$args_json" "$predecessor" "$salt" \
+        "$predecessor" "$salt" \
         update_delay \
         --new_delay "$new_delay"
 
@@ -138,9 +138,9 @@ cmd_execute_grant_role() {
 
     prepare_execute_operation "$TIMELOCK_ID" "grant_role" "$args_json" "$predecessor" "$salt"
 
-    execute_self_admin_op "manage_execute_grant" \
+    execute_self_admin_op_auth "manage_execute_grant" \
         "Executing grant-role..." \
-        "grant_role" "$args_json" "$predecessor" "$salt" \
+        "$predecessor" "$salt" \
         grant_role \
         --account "$target_account" \
         --role "$role" \
@@ -217,9 +217,9 @@ cmd_execute_revoke_role() {
 
     prepare_execute_operation "$TIMELOCK_ID" "revoke_role" "$args_json" "$predecessor" "$salt"
 
-    execute_self_admin_op "manage_execute_revoke" \
+    execute_self_admin_op_auth "manage_execute_revoke" \
         "Executing revoke-role..." \
-        "revoke_role" "$args_json" "$predecessor" "$salt" \
+        "$predecessor" "$salt" \
         revoke_role \
         --account "$target_account" \
         --role "$role" \
