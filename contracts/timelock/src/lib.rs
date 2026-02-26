@@ -1,4 +1,5 @@
-//! This is heavily from https://github.com/OpenZeppelin/stellar-contracts/blob/82f97111f9568d32653dd5b3563baf5b73509c89/examples/timelock-controller/src/contract.rs
+//! This is heavily based on
+//! <https://github.com/OpenZeppelin/stellar-contracts/blob/82f97111f9568d32653dd5b3563baf5b73509c89/examples/timelock-controller/src/contract.rs>.
 //!
 //! TimeLock Controller Contract.
 //!

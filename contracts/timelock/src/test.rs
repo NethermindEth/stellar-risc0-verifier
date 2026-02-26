@@ -829,7 +829,7 @@ fn test_check_auth_rejects_context_meta_length_mismatch() {
     ) else {
         panic!("expected Unauthorized");
     };
-    assert_eq!(err, TimelockError::Unauthorized.into());
+    assert_eq!(err, TimelockError::Unauthorized);
     assert!(!timelock.is_operation_done(&op_id));
 }
 
