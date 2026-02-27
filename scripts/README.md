@@ -7,13 +7,6 @@ How to deploy and manage the RISC Zero Stellar verifier contracts.
 > [!NOTE]
 > All commands in this guide assume your current working directory is the root of the repo.
 
-> [!TIP]
-> Looking for shorter, task-focused docs?
->
-> - [Docs index](../docs/README.md)
-> - [Deploy/manage with scripts](../docs/deploying-with-manage-sh.md)
-> - [Verify proofs (router `verify()`)](../docs/verifying-risc0-proofs.md)
-
 ## Architecture
 
 Four contracts make up the system:

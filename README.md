@@ -11,7 +11,18 @@
 [![Dependencies][deps-badge]][deps-url]
 [![UB][ub-badge]][ub-url]
 
-On-chain [RISC Zero][risczero] proof verification for the [Stellar][stellar] blockchain ([Soroban][soroban] smart contracts), built by [NethermindEth][nethermind]. The contract architecture — selector-based router, emergency stop proxies, and timelocked governance — follows the version-management pattern established in [risc0-ethereum][risc0-ethereum].
+On-chain [RISC Zero][risczero] proof verification for [Stellar][stellar]. The contract
+architecture mirrors the version-management pattern from [risc0-ethereum][risc0-ethereum].
+
+## Getting started
+
+- **[Verify a proof](docs/verifying-risc0-proofs.md)**: integrate from your Soroban contract or verify via CLI
+- **[Deploy & operate](scripts/README.md)**: deploy the verifier stack, manage roles, delays, emergency stop
+- **[Upgrade Groth16 parameters](docs/upgrading-groth16-verifier.md)**: deploy a new verifier version when RISC Zero params change
+- **[Architecture](docs/architecture.md)**: how it all fits together
+
+More in the [docs index](docs/README.md).
+
 
 ## Architecture
 
@@ -25,7 +36,7 @@ On-chain [RISC Zero][risczero] proof verification for the [Stellar][stellar] blo
                     │   VerifierRouter    │──── routes verify() by 4-byte selector
                     └──────────┬──────────┘
                                │ selector lookup
-              ┌────────────────┼─────────────────┐
+              ┌──────────────────────────────────┐
               │                                  │
    ┌──────────▼──────────┐            ┌──────────▼──────────┐
    │   EmergencyStop     │            │   EmergencyStop     │
@@ -37,26 +48,17 @@ On-chain [RISC Zero][risczero] proof verification for the [Stellar][stellar] blo
    └─────────────────────┘            └─────────────────────┘
 ```
 
-- **TimelockController** — governance contract; all router mutations are delayed.
-- **VerifierRouter** — routes `verify()` calls by the first 4 bytes of the proof seal.
-- **EmergencyStop** — per-verifier circuit breaker; permanently disables a verifier.
-- **Groth16Verifier** — production verifier for RISC Zero Groth16 (BN254) proofs.
+- **TimelockController**: governance; all router mutations go through a delay
+- **VerifierRouter**: routes `verify()` by the first 4 bytes of the proof seal
+- **EmergencyStop**: per-verifier circuit breaker, permanently disables a verifier
+- **Groth16Verifier**: verifies RISC Zero Groth16 (BN254) proofs
 
-For a deeper design discussion, see the [architecture document](docs/architecture.md).
+See [architecture](docs/architecture.md) for the full design.
 
-## Getting started
-
-- **[Verify a proof](docs/verifying-risc0-proofs.md)** — integrate from your Soroban contract or verify via CLI.
-- **[Deploy the system](docs/deploying-with-manage-sh.md)** — deploy the full verifier stack with `manage.sh`.
-- **[Operations reference](scripts/README.md)** — roles, delay updates, emergency stop, removal.
-- **[Upgrade Groth16 parameters](docs/upgrading-groth16-verifier.md)** — deploy a new verifier version.
-- **[Architecture](docs/architecture.md)** — system design, governance model, security considerations.
-
-See the [docs index](docs/README.md) for the full list.
 
 ## Contributing
 
-Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
 
 ## Security
 
@@ -85,6 +87,4 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 <!-- external links -->
 [risczero]: https://www.risczero.com/
 [stellar]: https://stellar.org/
-[soroban]: https://soroban.stellar.org/
-[nethermind]: https://www.nethermind.io/
 [risc0-ethereum]: https://github.com/risc0/risc0-ethereum
