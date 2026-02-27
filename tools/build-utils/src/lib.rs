@@ -14,7 +14,8 @@
 //!
 //! ## Main Functions
 //!
-//! - [`hash_point()`]: Hashes elliptic curve points in a standardized format
+//! - [`hash_g1_point()`]: Hashes BN254 G1 points in a standardized format
+//! - [`hash_g2_point()`]: Hashes BN254 G2 points in a standardized format
 //! - [`tagged_struct()`]: Creates hashes for tagged structs with named fields
 //! - [`tagged_iter()`]: Creates hashes for tagged lists from iterators
 //!
