@@ -1,7 +1,6 @@
-//! This is heavily based on
-//! <https://github.com/OpenZeppelin/stellar-contracts/blob/82f97111f9568d32653dd5b3563baf5b73509c89/examples/timelock-controller/src/contract.rs>.
-//!
 //! TimeLock Controller Contract.
+//!
+//! Based on the [OpenZeppelin TimelockController](https://github.com/OpenZeppelin/stellar-contracts/blob/82f97111f9568d32653dd5b3563baf5b73509c89/examples/timelock-controller/src/contract.rs).
 //!
 //! This contract implements a timelock controller with role-based access
 //! control, following the OpenZeppelin pattern for Stellar/Soroban.
@@ -159,10 +158,14 @@ pub struct OperationMeta {
     pub executor: Option<Address>,
 }
 
+/// Errors specific to the timelock controller (in addition to
+/// [`TimelockError`] from the underlying governance library).
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum TimelockControllerError {
+    /// The `targets`, `functions`, and `args_list` vectors in a batch
+    /// operation do not all have the same length.
     BatchLengthMismatch = 5000,
 }
 
@@ -206,7 +209,27 @@ pub struct BatchCallExecuted {
     pub salt: BytesN<32>,
 }
 
-/// TimeLock Controller contract.
+/// Timelock Controller contract for governed, time-delayed operations.
+///
+/// Implements role-based access control with a mandatory delay between
+/// scheduling and executing privileged operations. This contract is
+/// typically set as the **owner** of the verifier router, ensuring that
+/// all verifier management operations are transparent and observable before
+/// execution.
+///
+/// # Roles
+///
+/// - **Proposer** (`"proposer"`) -- can schedule operations
+/// - **Executor** (`"executor"`) -- can execute ready operations
+/// - **Canceller** (`"canceller"`) -- can cancel pending operations
+/// - **Bootstrap Admin** (`"bootstrap"`) -- optional initial admin for setup
+///
+/// # Self-Administration
+///
+/// The contract is its own admin. Operations targeting the timelock itself
+/// (e.g. `update_delay`, `grant_role`) use the `CustomAccountInterface`
+/// (`__check_auth`) to validate and execute, working around Soroban's
+/// re-entrancy restriction.
 #[contract]
 pub struct TimelockController;
 
@@ -767,6 +790,12 @@ impl TimelockController {
     }
 }
 
+/// Validates that all batch operation vectors have the same length.
+///
+/// # Panics
+///
+/// Panics with [`TimelockControllerError::BatchLengthMismatch`] if the
+/// vectors differ in length.
 fn validate_batch_lengths(
     e: &Env,
     targets: &Vec<Address>,
@@ -778,6 +807,10 @@ fn validate_batch_lengths(
     }
 }
 
+/// Computes a keccak256 hash of the batch parameters.
+///
+/// The hash is computed over the XDR-encoded targets, functions, and args
+/// concatenated with the raw predecessor and salt bytes.
 fn hash_operation_batch_inner(
     e: &Env,
     targets: &Vec<Address>,
@@ -797,6 +830,7 @@ fn hash_operation_batch_inner(
     e.crypto().keccak256(&data).into()
 }
 
+/// Emits a [`CallSalt`] event when a non-zero salt is used.
 fn emit_call_salt(e: &Env, id: &BytesN<32>, salt: &BytesN<32>) {
     CallSalt {
         id: id.clone(),
@@ -810,6 +844,17 @@ fn is_zero_bytes32(value: &BytesN<32>) -> bool {
     value.to_array() == ZERO_BYTES_32
 }
 
+/// Schedules an operation by its pre-computed ID with the given delay.
+///
+/// Used by `schedule_batch` where the batch ID is computed over all
+/// operations rather than a single one.
+///
+/// # Panics
+///
+/// - [`TimelockError::OperationAlreadyScheduled`] -- the operation ID
+///   already exists
+/// - [`TimelockError::InsufficientDelay`] -- the delay is less than the
+///   configured minimum
 fn schedule_operation_id_inner(e: &Env, operation_id: &BytesN<32>, delay: u32) {
     if operation_exists(e, operation_id) {
         panic_with_error!(e, TimelockError::OperationAlreadyScheduled);
@@ -826,6 +871,16 @@ fn schedule_operation_id_inner(e: &Env, operation_id: &BytesN<32>, delay: u32) {
     e.storage().persistent().set(&key, &ready_timestamp);
 }
 
+/// Marks an operation as executed after validating readiness and predecessor.
+///
+/// Used by `execute_batch` where the batch ID is computed over all
+/// operations rather than a single one.
+///
+/// # Panics
+///
+/// - [`TimelockError::InvalidOperationState`] -- the operation is not ready
+/// - [`TimelockError::UnexecutedPredecessor`] -- the predecessor operation
+///   has not been executed yet
 fn set_execute_operation_id_inner(e: &Env, operation_id: &BytesN<32>, predecessor: &BytesN<32>) {
     if !is_operation_ready(e, operation_id) {
         panic_with_error!(e, TimelockError::InvalidOperationState);
@@ -840,6 +895,7 @@ fn set_execute_operation_id_inner(e: &Env, operation_id: &BytesN<32>, predecesso
     e.storage().persistent().set(&key, &DONE_TIMESTAMP);
 }
 
-// Expose role management functions via AccessControl trait
+/// Exposes role management functions (grant, revoke, has_role, etc.) via
+/// the [`AccessControl`] trait from `stellar-access`.
 #[contractimpl(contracttrait)]
 impl AccessControl for TimelockController {}
