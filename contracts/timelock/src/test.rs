@@ -1376,18 +1376,34 @@ fn test_execute_op_rejects_self_target() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (timelock, _, _, _proposer, _executor) = setup_with_external_admin(&e);
-    let args = Vec::<Val>::new(&e);
+    let (timelock, _, _, proposer, executor) = setup_with_external_admin(&e);
+    let predecessor = zero_bytes(&e);
+    let salt = zero_bytes(&e);
+    let args: Vec<Val> = vec![&e, 120u32.into_val(&e)];
+
+    let op_id = timelock.schedule_op(
+        &timelock.address,
+        &Symbol::new(&e, "update_delay"),
+        &args,
+        &predecessor,
+        &salt,
+        &60u32,
+        &proposer,
+    );
+
+    e.ledger().set_timestamp(e.ledger().timestamp() + 61);
+    assert!(timelock.is_operation_ready(&op_id));
 
     let result = timelock.try_execute_op(
         &timelock.address,
         &Symbol::new(&e, "update_delay"),
         &args,
-        &zero_bytes(&e),
-        &zero_bytes(&e),
-        &None,
+        &predecessor,
+        &salt,
+        &Some(executor),
     );
     assert!(result.is_err());
+    assert!(timelock.is_operation_ready(&op_id));
 }
 
 #[test]
@@ -1395,21 +1411,38 @@ fn test_execute_batch_rejects_self_target() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (timelock, _target, _, _proposer, _executor) = setup_with_external_admin(&e);
+    let (timelock, _target, _, proposer, executor) = setup_with_external_admin(&e);
+    let predecessor = zero_bytes(&e);
+    let salt = zero_bytes(&e);
+    let args = vec![&e, 120u32.into_val(&e)];
 
     let targets = vec![&e, timelock.address.clone()];
     let functions = vec![&e, Symbol::new(&e, "update_delay")];
-    let args_list = vec![&e, Vec::<Val>::new(&e)];
+    let args_list = vec![&e, args.clone()];
+
+    let batch_id = timelock.schedule_batch(
+        &targets,
+        &functions,
+        &args_list,
+        &predecessor,
+        &salt,
+        &60u32,
+        &proposer,
+    );
+
+    e.ledger().set_timestamp(e.ledger().timestamp() + 61);
+    assert!(timelock.is_operation_ready(&batch_id));
 
     let result = timelock.try_execute_batch(
         &targets,
         &functions,
         &args_list,
-        &zero_bytes(&e),
-        &zero_bytes(&e),
-        &None,
+        &predecessor,
+        &salt,
+        &Some(executor),
     );
     assert!(result.is_err());
+    assert!(timelock.is_operation_ready(&batch_id));
 }
 
 // ============================================================================
