@@ -245,7 +245,7 @@ impl CustomAccountInterface for TimelockController {
         }
 
         for (context, meta) in auth_contexts.iter().zip(context_meta) {
-            match context.clone() {
+            match context {
                 Context::Contract(ContractContext {
                     contract,
                     fn_name,
