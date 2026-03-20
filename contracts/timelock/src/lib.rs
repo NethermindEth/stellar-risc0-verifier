@@ -139,6 +139,9 @@ const CANCELLER_ROLE: Symbol = symbol_short!("canceller");
 /// roles.
 const BOOTSTRAP_ADMIN_ROLE: Symbol = symbol_short!("bootstrap");
 
+/// Shared zero sentinel for empty predecessors and default salts.
+const ZERO_BYTES_32: [u8; 32] = [0; 32];
+
 /// Metadata for self-administration operations.
 ///
 /// This struct is used as the signature type in `CustomAccountInterface` to
@@ -389,7 +392,7 @@ impl TimelockController {
             salt,
         };
         let op_id = schedule_operation(e, &operation, delay);
-        if !is_zero_bytes32(e, &operation.salt) {
+        if !is_zero_bytes32(&operation.salt) {
             emit_call_salt(e, &op_id, &operation.salt);
         }
         op_id
@@ -533,7 +536,7 @@ impl TimelockController {
             }
             .publish(e);
         }
-        if !is_zero_bytes32(e, &salt) {
+        if !is_zero_bytes32(&salt) {
             emit_call_salt(e, &batch_id, &salt);
         }
 
@@ -802,8 +805,9 @@ fn emit_call_salt(e: &Env, id: &BytesN<32>, salt: &BytesN<32>) {
     .publish(e);
 }
 
-fn is_zero_bytes32(e: &Env, value: &BytesN<32>) -> bool {
-    *value == BytesN::<32>::from_array(e, &[0u8; 32])
+/// Returns `true` if the value is all zeros.
+fn is_zero_bytes32(value: &BytesN<32>) -> bool {
+    value.to_array() == ZERO_BYTES_32
 }
 
 fn schedule_operation_id_inner(e: &Env, operation_id: &BytesN<32>, delay: u32) {
@@ -827,7 +831,7 @@ fn set_execute_operation_id_inner(e: &Env, operation_id: &BytesN<32>, predecesso
         panic_with_error!(e, TimelockError::InvalidOperationState);
     }
 
-    let no_predecessor = BytesN::<32>::from_array(e, &[0u8; 32]);
+    let no_predecessor = BytesN::<32>::from_array(e, &ZERO_BYTES_32);
     if *predecessor != no_predecessor && !is_operation_done(e, predecessor) {
         panic_with_error!(e, TimelockError::UnexecutedPredecessor);
     }
