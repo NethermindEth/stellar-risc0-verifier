@@ -60,9 +60,8 @@ impl RiscZeroVerifierEmergencyStop {
     }
 
     /// Permanently pauses verification via the circuit-breaker receipt.
+    #[when_not_paused]
     pub fn estop_with_receipt(env: Env, receipt: Receipt) {
-        pausable::when_not_paused(&env);
-
         let zero_digest = BytesN::from_array(&env, &ZERO_DIGEST);
         if receipt.claim_digest != zero_digest {
             panic_with_error!(&env, EmergencyStopError::InvalidProofOfExploit);
