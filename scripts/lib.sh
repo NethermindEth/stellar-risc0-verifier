@@ -174,7 +174,7 @@ execute_self_admin_op() {
     stellar contract invoke \
         --id "$TIMELOCK_ID" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         -- \
         "$@" \
         > "${TMP_DIR}/${output_base}.txt" 2>&1 &
@@ -193,7 +193,7 @@ execute_self_admin_op() {
     stellar contract invoke \
         --id "$TIMELOCK_ID" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         -- \
         execute_op \
         --target "$TIMELOCK_ID" \
@@ -244,7 +244,7 @@ execute_self_admin_op_auth() {
         stellar contract invoke \
         --id "$TIMELOCK_ID" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         --build-only \
         -- \
         "$@"
@@ -257,7 +257,7 @@ execute_self_admin_op_auth() {
 
     local latest_ledger
     latest_ledger=$(
-        stellar network health --network "$NETWORK" 2>&1 \
+        stellar network health "${NETWORK_ARGS[@]}" 2>&1 \
             | sed -nE 's/.*Latest ledger: ([0-9]+).*/\1/p' \
             | tail -n 1
     )
@@ -285,7 +285,7 @@ execute_self_admin_op_auth() {
         local simulate_msg="Simulating self-admin transaction..."
         local -a simulate_cmd=(
             stellar tx simulate
-            --network "$NETWORK"
+            "${NETWORK_ARGS[@]}"
             --source-account "$ACCOUNT"
         )
         if [[ "$leeway" != "0" ]]; then
@@ -426,7 +426,7 @@ PY
             "Signing self-admin transaction..." \
             "Signing self-admin transaction failed!" \
             stellar tx sign \
-            --network "$NETWORK" \
+            "${NETWORK_ARGS[@]}" \
             --sign-with-key "$ACCOUNT" \
             "$rebudgeted_xdr"
 
@@ -437,7 +437,7 @@ PY
         fi
 
         stellar tx send \
-            --network "$NETWORK" \
+            "${NETWORK_ARGS[@]}" \
             "$signed_xdr" \
             > "$send_file" 2>&1 &
         local pid=$!
@@ -501,6 +501,7 @@ resolve_network() {
         if ! is_valid_network "$NETWORK"; then
             fatal "Invalid network: ${BOLD_WHITE}$NETWORK${RESET}. Use: local, futurenet, testnet, or mainnet"
         fi
+        build_network_args
         return
     fi
 
@@ -523,7 +524,20 @@ resolve_network() {
         *) echo -e "${RED}Invalid choice${RESET}"; exit 1 ;;
     esac
 
+    build_network_args
     print_section "Environment Check (continued)"
+}
+
+# Build the NETWORK_ARGS array used by all stellar CLI invocations.
+# Includes --rpc-url and --network-passphrase when provided.
+build_network_args() {
+    NETWORK_ARGS=(--network "$NETWORK")
+    if [[ -n "${RPC_URL:-}" ]]; then
+        NETWORK_ARGS+=(--rpc-url "$RPC_URL")
+    fi
+    if [[ -n "${NETWORK_PASSPHRASE:-}" ]]; then
+        NETWORK_ARGS+=(--network-passphrase "$NETWORK_PASSPHRASE")
+    fi
 }
 
 resolve_account() {
@@ -682,7 +696,7 @@ stellar_query() {
     stellar contract invoke \
         --id "$contract_id" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         -- "$@" 2>/dev/null
 }
 
@@ -823,7 +837,7 @@ compute_operation_id() {
     stellar contract invoke \
         --id "$TIMELOCK_ID" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         -- \
         hash_operation \
         --target "$target" \
@@ -847,7 +861,7 @@ schedule_timelock_op() {
     stellar contract invoke \
         --id "$TIMELOCK_ID" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         -- \
         schedule_op \
         --target "$target" \
@@ -904,7 +918,7 @@ execute_timelock_op() {
         stellar contract invoke \
         --id "$TIMELOCK_ID" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         -- \
         execute_op \
         --target "$target" \

@@ -9,10 +9,12 @@
 # Usage: ./manage.sh <subcommand> [global-flags] [subcommand-flags]
 #
 # Global Flags:
-#   -n, --network      Network (local|futurenet|testnet|mainnet)
-#   -a, --account      Stellar CLI identity alias
-#   -c, --config       Path to deployment.toml (default: ./deployment.toml)
-#   -h, --help         Show help
+#   -n, --network              Network (local|futurenet|testnet|mainnet)
+#   -a, --account              Stellar CLI identity alias
+#   -c, --config               Path to deployment.toml (default: ./deployment.toml)
+#       --rpc-url              Custom Soroban RPC endpoint URL
+#       --network-passphrase   Network passphrase (if non-standard)
+#   -h, --help                 Show help
 #
 # Deploy Commands:
 #   deploy-router                Deploy timelock + router (router owned by timelock)
@@ -74,6 +76,8 @@ show_help() {
     echo -e "    ${GREEN}-n, --network${RESET} <NETWORK>      Network (local|futurenet|testnet|mainnet)"
     echo -e "    ${GREEN}-a, --account${RESET} <IDENTITY>     Stellar CLI identity alias"
     echo -e "    ${GREEN}-c, --config${RESET}  <PATH>         Path to deployment.toml"
+    echo -e "    ${GREEN}--rpc-url${RESET}     <URL>          Custom Soroban RPC endpoint URL"
+    echo -e "    ${GREEN}--network-passphrase${RESET} <PASS>  Network passphrase (if non-standard)"
     echo -e "    ${GREEN}-h, --help${RESET}                   Show this help"
     echo ""
     echo -e "${BOLD_WHITE}DEPLOY COMMANDS${RESET}"
@@ -123,6 +127,8 @@ show_help() {
 NETWORK="${NETWORK:-}"
 ACCOUNT="${ACCOUNT_NAME:-${IDENTITY_NAME:-}}"
 CONFIG_FILE="${DEPLOYMENT_CONFIG:-${PROJECT_ROOT}/deployment.toml}"
+RPC_URL="${RPC_URL:-}"
+NETWORK_PASSPHRASE="${NETWORK_PASSPHRASE:-}"
 SUBCOMMAND=""
 SUBCMD_ARGS=()
 SUBCMD_FLAG_VALUE=""
@@ -197,6 +203,14 @@ while [[ $# -gt 0 ]]; do
             CONFIG_FILE="$(require_next_cli_arg "$@")"
             shift 2
             ;;
+        --rpc-url)
+            RPC_URL="$(require_next_cli_arg "$@")"
+            shift 2
+            ;;
+        --network-passphrase)
+            NETWORK_PASSPHRASE="$(require_next_cli_arg "$@")"
+            shift 2
+            ;;
         -h|--help)
             if [[ -z "$SUBCOMMAND" ]]; then
                 show_help
@@ -255,6 +269,9 @@ setup_environment() {
     DEPLOYER_JSON="\"$DEPLOYER_ADDRESS\""
 
     success "Network: ${BOLD_MAGENTA}$NETWORK${RESET}"
+    if [[ -n "$RPC_URL" ]]; then
+        info "RPC URL: ${DIM}$RPC_URL${RESET}"
+    fi
     success "Account: ${BOLD_GREEN}$ACCOUNT${RESET}"
     info "Address: ${DIM}$DEPLOYER_ADDRESS${RESET}"
     print_section_end

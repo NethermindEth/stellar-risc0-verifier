@@ -22,7 +22,7 @@ cmd_renounce_role() {
         stellar contract invoke \
         --id "$TIMELOCK_ID" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         -- \
         renounce_role \
         --role "$role" \
@@ -56,7 +56,7 @@ cmd_cancel_operation() {
         stellar contract invoke \
         --id "$TIMELOCK_ID" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         -- \
         cancel_op \
         --operation_id "$operation_id" \
@@ -113,7 +113,7 @@ cmd_activate_estop() {
         stellar contract invoke \
         --id "$estop" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         -- \
         estop
 

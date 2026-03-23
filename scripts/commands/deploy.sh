@@ -29,7 +29,7 @@ cmd_deploy_router() {
         stellar contract deploy \
         --wasm "$timelock_wasm" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         --alias timelock-controller \
         -- \
         --min_delay "$min_delay" \
@@ -55,7 +55,7 @@ cmd_deploy_router() {
         stellar contract deploy \
         --wasm "$router_wasm" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         --alias risc0-router \
         -- \
         --owner "$TIMELOCK_ID"
@@ -119,7 +119,7 @@ cmd_deploy_verifier() {
         stellar contract deploy \
         --wasm "$verifier_wasm" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         --alias groth16-verifier
 
     local verifier_id
@@ -142,7 +142,7 @@ cmd_deploy_verifier() {
         stellar contract deploy \
         --wasm "$estop_wasm" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         --alias emergency-stop \
         -- \
         --verifier "$verifier_id" \
@@ -232,7 +232,7 @@ cmd_deploy_mock_verifier() {
         stellar contract deploy \
         --wasm "$mock_wasm" \
         --source "$ACCOUNT" \
-        --network "$NETWORK" \
+        "${NETWORK_ARGS[@]}" \
         --alias mock-verifier \
         -- \
         --selector "$selector"
