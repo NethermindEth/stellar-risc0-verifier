@@ -69,7 +69,7 @@ unroutable = false
 
 ## Setup
 
-### [OTPIONAL] Create a Stellar account
+### [OPTIONAL] Create a Stellar account
 
 ```sh
 stellar keys generate deployer --network testnet
