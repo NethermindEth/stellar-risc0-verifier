@@ -1,8 +1,8 @@
 //! # RISC Zero Receipt Types
 //!
-//! This module defines the core data structures used for RISC Zero proof verification
-//! on Soroban. These types represent the cryptographic proofs and claims that attest to the
-//! correct execution of guest programs.
+//! This module defines the core data structures used for RISC Zero proof
+//! verification on Soroban. These types represent the cryptographic proofs and
+//! claims that attest to the correct execution of guest programs.
 //!
 //! ## Type Overview
 //!
@@ -11,8 +11,10 @@
 //!
 //! ## Verification Flow
 //!
-//! 1. The prover executes off-chain, producing a journal (public outputs) and cryptographic proof
-//! 2. A [`Receipt`] is constructed with the seal (proof) and a `claim_digest` (hash of the [`ReceiptClaim`])
+//! 1. The prover executes off-chain, producing a journal (public outputs) and
+//!    cryptographic proof
+//! 2. A [`Receipt`] is constructed with the seal (proof) and a `claim_digest`
+//!    (hash of the [`ReceiptClaim`])
 //! 3. The receipt is submitted to a Soroban verifier contract for validation
 //! 4. The verifier cryptographically validates that the seal proves the claim
 
@@ -43,20 +45,23 @@ pub enum VerifierError {
 
 /// A receipt attesting to a claim using the RISC Zero proof system.
 ///
-/// A receipt is the complete proof package that can be verified on-chain. It combines
-/// a cryptographic proof (seal) with a claim about what was executed.
+/// A receipt is the complete proof package that can be verified on-chain. It
+/// combines a cryptographic proof (seal) with a claim about what was executed.
 ///
 /// # Structure
 ///
-/// - **[`seal`](Receipt::seal)**: A zero-knowledge proof attesting to knowledge of a witness for the claim
-/// - **[`claim_digest`](Receipt::claim_digest)**: The SHA-256 hash of a [`ReceiptClaim`] struct containing
-///   execution details (program ID, journal, exit code, etc.)
+/// - **[`seal`](Receipt::seal)**: A zero-knowledge proof attesting to knowledge
+///   of a witness for the claim
+/// - **[`claim_digest`](Receipt::claim_digest)**: The SHA-256 hash of a
+///   [`ReceiptClaim`] struct containing execution details (program ID, journal,
+///   exit code, etc.)
 ///
 /// # Important: Claim Digest Validation
 ///
-/// The `claim_digest` field **must** be correctly computed by the caller for verification to
-/// have meaningful security guarantees. This is similar to verifying an ECDSA signature where
-/// the message hash must be computed correctly.
+/// The `claim_digest` field **must** be correctly computed by the caller for
+/// verification to have meaningful security guarantees. This is similar to
+/// verifying an ECDSA signature where the message hash must be computed
+/// correctly.
 ///
 /// For standard successful executions, use:
 /// ```ignore
@@ -85,30 +90,32 @@ pub struct Receipt {
 
 /// A claim about the execution of a RISC Zero guest program.
 ///
-/// This structure contains all the details about a program execution that the seal
-/// cryptographically proves. It includes the program identifier, execution state,
-/// exit status, and outputs.
+/// This structure contains all the details about a program execution that the
+/// seal cryptographically proves. It includes the program identifier, execution
+/// state, exit status, and outputs.
 ///
 /// # Fields
 ///
 /// The claim follows RISC Zero's standard structure for zkVM execution:
 ///
 /// - **pre_state_digest**: The image id of the guest program
-/// - **post_state_digest**: Final state after execution (fixed constant for successful runs)
+/// - **post_state_digest**: Final state after execution (fixed constant for
+///   successful runs)
 /// - **exit_code**: How the program terminated (system and user codes)
 /// - **input**: Committed input digest (currently unused, set to zero)
 /// - **output**: Digest of the [`Output`] containing journal and assumptions
 ///
 /// # Usage
 ///
-/// Most users should construct claims using [`ReceiptClaim::new()`] for standard
-/// successful executions, which automatically sets appropriate defaults.
+/// Most users should construct claims using [`ReceiptClaim::new()`] for
+/// standard successful executions, which automatically sets appropriate
+/// defaults.
 #[contracttype]
 pub struct ReceiptClaim {
     /// Digest of the system state before execution (the program [`ImageId`]).
     ///
-    /// This identifies which guest program was executed. It must match the expected
-    /// program for verification to be meaningful.
+    /// This identifies which guest program was executed. It must match the
+    /// expected program for verification to be meaningful.
     pre_state_digest: BytesN<32>,
 
     /// Digest of the system state after execution has completed.
@@ -133,7 +140,8 @@ pub struct ReceiptClaim {
     /// Digest of the execution output.
     ///
     /// This is the SHA-256 hash of an [`Output`] struct containing the journal
-    /// digest and assumptions digest. See [`Output::digest()`] for the hashing scheme.
+    /// digest and assumptions digest. See [`Output::digest()`] for the hashing
+    /// scheme.
     output: BytesN<32>,
 }
 
@@ -143,8 +151,8 @@ pub struct ReceiptClaim {
 /// - **System code**: Indicates the execution mode (halted, paused, or split)
 /// - **User code**: Application-specific exit code (8 bytes)
 ///
-/// For standard successful executions, the system code is [`SystemExitCode::Halted`]
-/// and the user code is zero.
+/// For standard successful executions, the system code is
+/// [`SystemExitCode::Halted`] and the user code is zero.
 #[contracttype]
 pub struct ExitCode {
     /// System-level exit code indicating the execution termination mode.
@@ -160,7 +168,8 @@ pub struct ExitCode {
 /// # Variants
 ///
 /// - **Halted**: Normal termination - the program completed successfully
-/// - **Paused**: Execution paused (used for continuations and multi-segment proofs)
+/// - **Paused**: Execution paused (used for continuations and multi-segment
+///   proofs)
 /// - **SystemSplit**: Execution split for parallel proving
 ///
 /// # Encoding
@@ -188,10 +197,12 @@ pub enum SystemExitCode {
 /// # Fields
 ///
 /// - **journal_digest**: SHA-256 hash of the journal (public outputs)
-/// - **assumptions_digest**: SHA-256 hash of assumptions (zero for unconditional proofs)
+/// - **assumptions_digest**: SHA-256 hash of assumptions (zero for
+///   unconditional proofs)
 #[contracttype]
 pub struct Output {
-    /// SHA-256 digest of the journal bytes (public outputs from the guest program).
+    /// SHA-256 digest of the journal bytes (public outputs from the guest
+    /// program).
     journal_digest: BytesN<32>,
     /// SHA-256 digest of assumptions (dependencies on other receipts).
     ///
@@ -210,8 +221,9 @@ impl Output {
 
     /// Computes the SHA-256 digest of this [`Output`] struct.
     ///
-    /// This digest is used as the `output` field in a [`ReceiptClaim`]. The hashing
-    /// scheme follows RISC Zero's tagged hash specification to prevent cross-protocol attacks.
+    /// This digest is used as the `output` field in a [`ReceiptClaim`]. The
+    /// hashing scheme follows RISC Zero's tagged hash specification to
+    /// prevent cross-protocol attacks.
     ///
     /// # Hash Construction
     ///
@@ -239,14 +251,6 @@ impl Output {
 }
 
 impl ReceiptClaim {
-    /// Pre-computed SHA-256("risc0.ReceiptClaim") tag digest.
-    /// This constant avoids computing the tag hash on every call.
-    const TAG_DIGEST: [u8; 32] = [
-        0xcb, 0x1f, 0xef, 0xcd, 0x1f, 0x2d, 0x9a, 0x64, 0x97, 0x5c, 0xbb, 0xbf, 0x6e, 0x16, 0x1e,
-        0x29, 0x14, 0x43, 0x4b, 0x0c, 0xbb, 0x99, 0x60, 0xb8, 0x4d, 0xf5, 0xd7, 0x17, 0xe8, 0x6b,
-        0x48, 0xaf,
-    ];
-
     /// Fixed post-state digest for a halted execution.
     ///
     /// This is a protocol constant used in standard successful receipt claims.
@@ -255,11 +259,19 @@ impl ReceiptClaim {
         0xf4, 0xc4, 0x9d, 0x22, 0xc7, 0x9e, 0x44, 0xaa, 0xd8, 0x22, 0xec, 0x9c, 0x31, 0x3e, 0x1e,
         0xb8, 0xe2,
     ];
+    /// Pre-computed SHA-256("risc0.ReceiptClaim") tag digest.
+    /// This constant avoids computing the tag hash on every call.
+    const TAG_DIGEST: [u8; 32] = [
+        0xcb, 0x1f, 0xef, 0xcd, 0x1f, 0x2d, 0x9a, 0x64, 0x97, 0x5c, 0xbb, 0xbf, 0x6e, 0x16, 0x1e,
+        0x29, 0x14, 0x43, 0x4b, 0x0c, 0xbb, 0x99, 0x60, 0xb8, 0x4d, 0xf5, 0xd7, 0x17, 0xe8, 0x6b,
+        0x48, 0xaf,
+    ];
 
-    /// Constructs a standard [`ReceiptClaim`] for a successful guest program execution.
+    /// Constructs a standard [`ReceiptClaim`] for a successful guest program
+    /// execution.
     ///
-    /// This convenience method creates a claim with standard assumptions suitable for
-    /// most verification scenarios:
+    /// This convenience method creates a claim with standard assumptions
+    /// suitable for most verification scenarios:
     ///
     /// - **Input**: Zero digest (no committed input)
     /// - **Exit code**: (Halted, 0) indicating successful completion
@@ -296,9 +308,9 @@ impl ReceiptClaim {
 
     /// Computes the SHA-256 digest of this [`ReceiptClaim`].
     ///
-    /// This digest becomes the `claim_digest` field in a [`Receipt`] and is what the
-    /// cryptographic proof (seal) actually attests to. The hashing scheme follows RISC Zero's
-    /// tagged hash specification.
+    /// This digest becomes the `claim_digest` field in a [`Receipt`] and is
+    /// what the cryptographic proof (seal) actually attests to. The hashing
+    /// scheme follows RISC Zero's tagged hash specification.
     ///
     /// # Hash Construction
     ///
@@ -331,8 +343,8 @@ impl ReceiptClaim {
     ///
     /// # Security Note
     ///
-    /// This digest must be computed correctly for verification to be secure. Always use
-    /// this method rather than implementing custom hashing.
+    /// This digest must be computed correctly for verification to be secure.
+    /// Always use this method rather than implementing custom hashing.
     pub fn digest(&self, env: &Env) -> BytesN<32> {
         let mut data = Bytes::new(env);
         data.append(&Bytes::from_array(env, &Self::TAG_DIGEST));
@@ -375,8 +387,9 @@ impl ReceiptClaim {
 /// - `Active(Address)` means the selector routes to that verifier contract.
 /// - `Tombstone` means the selector was removed and can never be reused.
 ///
-/// The router `verifiers` getter returns `None` when a selector has never been set,
-/// allowing callers to distinguish "unset" vs "removed" without relying on errors.
+/// The router `verifiers` getter returns `None` when a selector has never been
+/// set, allowing callers to distinguish "unset" vs "removed" without relying on
+/// errors.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VerifierEntry {

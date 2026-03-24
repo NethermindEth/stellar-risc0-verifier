@@ -11,9 +11,9 @@
 //! - The timelock imposes a delay, which is valuable for governance but
 //!   unacceptable for emergency response.
 //! - The guardian can pause a verifier **immediately** without waiting.
-//! - Once activated, the stop is **permanent** -- there is no unpause
-//!   function, preventing an attacker who compromises the guardian key
-//!   from toggling the stop.
+//! - Once activated, the stop is **permanent** -- there is no unpause function,
+//!   preventing an attacker who compromises the guardian key from toggling the
+//!   stop.
 //!
 //! ## Architecture
 //!
@@ -27,9 +27,9 @@
 //! ## Activation Paths
 //!
 //! 1. **Guardian call** -- the owner invokes `estop()` directly.
-//! 2. **Proof of exploit** -- anyone invokes `estop_with_receipt()` with
-//!    a receipt whose `claim_digest` is the zero digest. The receipt is
-//!    verified against the underlying verifier to prove the exploit is real.
+//! 2. **Proof of exploit** -- anyone invokes `estop_with_receipt()` with a
+//!    receipt whose `claim_digest` is the zero digest. The receipt is verified
+//!    against the underlying verifier to prove the exploit is real.
 //!
 //! ## After Activation
 //!

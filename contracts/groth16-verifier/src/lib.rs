@@ -20,13 +20,15 @@
 //! ```
 //!
 //! Applications call the router, which extracts the 4-byte selector from the
-//! seal and dispatches to the appropriate verifier via the emergency-stop proxy.
+//! seal and dispatches to the appropriate verifier via the emergency-stop
+//! proxy.
 //!
 //! ## Build-Time Parameters
 //!
 //! The `build.rs` script reads `parameters.json` and generates:
 //!
-//! - `VERIFICATION_KEY` -- Groth16 verification key (alpha, beta, gamma, delta, IC)
+//! - `VERIFICATION_KEY` -- Groth16 verification key (alpha, beta, gamma, delta,
+//!   IC)
 //! - `SELECTOR` -- 4-byte selector derived from a tagged hash of the parameters
 //! - `CONTROL_ROOT_0` / `CONTROL_ROOT_1` -- split halves of the control root
 //! - `BN254_CONTROL_ID` -- BN254-specific control identifier
@@ -72,8 +74,8 @@ mod types;
 ///
 /// # Verification Flow
 ///
-/// 1. The seal bytes are decoded into a `Groth16Seal`
-///    containing a 4-byte selector and a Groth16 proof (points A, B, C).
+/// 1. The seal bytes are decoded into a `Groth16Seal` containing a 4-byte
+///    selector and a Groth16 proof (points A, B, C).
 /// 2. The selector is checked against the embedded `SELECTOR` constant.
 /// 3. The claim digest is split into two 128-bit halves and combined with the
 ///    control root and BN254 control ID to form the public signals.
@@ -84,32 +86,27 @@ pub struct RiscZeroGroth16Verifier;
 
 #[contractimpl]
 impl RiscZeroGroth16Verifier {
-    /// Groth16 verification key for the RISC Zero system.
-    ///
-    /// Generated at build time from `parameters.json` by `build.rs`. Contains
-    /// the alpha, beta, gamma, delta curve points and the IC (input coefficient)
-    /// array used in the pairing check.
-    const VERIFICATION_KEY: VerificationKeyBytes =
-        include!(concat!(env!("OUT_DIR"), "/verification_key.rs"));
-
-    /// RISC Zero verifier version string (e.g. `"1.0.0"`).
-    const VERSION: &'static str = include!(concat!(env!("OUT_DIR"), "/version.rs"));
-
-    /// Upper 128 bits of the control root (zero-padded to 32 bytes).
-    const CONTROL_ROOT_0: [u8; 16] = include!(concat!(env!("OUT_DIR"), "/control_root_0.rs"));
-
-    /// Lower 128 bits of the control root (zero-padded to 32 bytes).
-    const CONTROL_ROOT_1: [u8; 16] = include!(concat!(env!("OUT_DIR"), "/control_root_1.rs"));
-
     /// BN254-specific control identifier for the RISC Zero circuit.
     const BN254_CONTROL_ID: [u8; 32] = include!(concat!(env!("OUT_DIR"), "/bn254_control_id.rs"));
-
+    /// Upper 128 bits of the control root (zero-padded to 32 bytes).
+    const CONTROL_ROOT_0: [u8; 16] = include!(concat!(env!("OUT_DIR"), "/control_root_0.rs"));
+    /// Lower 128 bits of the control root (zero-padded to 32 bytes).
+    const CONTROL_ROOT_1: [u8; 16] = include!(concat!(env!("OUT_DIR"), "/control_root_1.rs"));
     /// 4-byte selector that identifies this verifier in the router.
     ///
     /// Derived from a tagged hash of the control root, BN254 control ID, and
     /// verification key digest. Seals produced for this verifier must begin
     /// with these 4 bytes.
     const SELECTOR: [u8; 4] = include!(concat!(env!("OUT_DIR"), "/selector.rs"));
+    /// Groth16 verification key for the RISC Zero system.
+    ///
+    /// Generated at build time from `parameters.json` by `build.rs`. Contains
+    /// the alpha, beta, gamma, delta curve points and the IC (input
+    /// coefficient) array used in the pairing check.
+    const VERIFICATION_KEY: VerificationKeyBytes =
+        include!(concat!(env!("OUT_DIR"), "/verification_key.rs"));
+    /// RISC Zero verifier version string (e.g. `"1.0.0"`).
+    const VERSION: &'static str = include!(concat!(env!("OUT_DIR"), "/version.rs"));
 
     /// Returns the 4-byte selector that identifies this verifier.
     ///

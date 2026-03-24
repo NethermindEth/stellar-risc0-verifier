@@ -1,8 +1,8 @@
 // This build script helps us generate the VerificationKey for the
 // RiscZeroGroth16Verifier during the compilation. The key is fetched from
-// `config.json` and makes it available as a const to the contract. This way, the
-// verification key gets included in the contract at compile time, so we don't
-// have to initialize the contract and spend resources on reading from the
+// `config.json` and makes it available as a const to the contract. This way,
+// the verification key gets included in the contract at compile time, so we
+// don't have to initialize the contract and spend resources on reading from the
 // ledger the verification key.
 
 use std::{env, fs, path::PathBuf, str::FromStr};
@@ -169,7 +169,8 @@ fn compute_control_roots(control_root: &str) -> ([u8; 16], [u8; 16]) {
     let mut control_root_1 = [0u8; 16];
 
     // Note: Solidity's splitDigest returns (lower128, upper128) but assigns them as
-    // control_root0 = upper128, control_root1 = lower128. We match that convention here.
+    // control_root0 = upper128, control_root1 = lower128. We match that convention
+    // here.
     control_root_0.copy_from_slice(&bytes[16..32]); // Upper 128 bits
     control_root_1.copy_from_slice(&bytes[0..16]); // Lower 128 bits
 

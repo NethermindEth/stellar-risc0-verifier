@@ -119,8 +119,8 @@ impl RiscZeroVerifierRouter {
     ///
     /// - [`VerifierError::SelectorRemoved`] -- the selector was previously
     ///   removed (tombstoned) and cannot be re-registered
-    /// - [`VerifierError::SelectorInUse`] -- the selector is already mapped
-    ///   to an active verifier
+    /// - [`VerifierError::SelectorInUse`] -- the selector is already mapped to
+    ///   an active verifier
     #[only_owner]
     pub fn add_verifier(
         env: Env,

@@ -48,10 +48,12 @@ const SEAL_SIZE: usize = SELECTOR_SIZE + PROOF_SIZE;
 /// Groth16 verification key for BN254 curve.
 ///
 /// Contains the public parameters needed to verify a Groth16 proof:
-/// - `alpha`, `beta`, `gamma`, `delta`: Fixed elliptic curve points from the trusted setup
+/// - `alpha`, `beta`, `gamma`, `delta`: Fixed elliptic curve points from the
+///   trusted setup
 /// - `ic`: Array of G1 points used for computing the public input component
 ///
-/// This structure uses arkworks types internally and is not serializable for contract storage.
+/// This structure uses arkworks types internally and is not serializable for
+/// contract storage.
 #[derive(Clone)]
 pub struct VerificationKey {
     pub alpha: G1Affine,

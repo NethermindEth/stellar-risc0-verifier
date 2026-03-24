@@ -851,8 +851,8 @@ fn is_zero_bytes32(value: &BytesN<32>) -> bool {
 ///
 /// # Panics
 ///
-/// - [`TimelockError::OperationAlreadyScheduled`] -- the operation ID
-///   already exists
+/// - [`TimelockError::OperationAlreadyScheduled`] -- the operation ID already
+///   exists
 /// - [`TimelockError::InsufficientDelay`] -- the delay is less than the
 ///   configured minimum
 fn schedule_operation_id_inner(e: &Env, operation_id: &BytesN<32>, delay: u32) {
@@ -879,8 +879,8 @@ fn schedule_operation_id_inner(e: &Env, operation_id: &BytesN<32>, delay: u32) {
 /// # Panics
 ///
 /// - [`TimelockError::InvalidOperationState`] -- the operation is not ready
-/// - [`TimelockError::UnexecutedPredecessor`] -- the predecessor operation
-///   has not been executed yet
+/// - [`TimelockError::UnexecutedPredecessor`] -- the predecessor operation has
+///   not been executed yet
 fn set_execute_operation_id_inner(e: &Env, operation_id: &BytesN<32>, predecessor: &BytesN<32>) {
     if !is_operation_ready(e, operation_id) {
         panic_with_error!(e, TimelockError::InvalidOperationState);

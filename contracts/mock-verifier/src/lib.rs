@@ -5,9 +5,9 @@
 //!
 //! ## Purpose
 //!
-//! The mock verifier implements [`RiscZeroVerifierInterface`] without performing
-//! any real proof verification. It is the Soroban counterpart of the Ethereum
-//! mock verifier used with `DEV_MODE=1` in the RISC Zero toolchain.
+//! The mock verifier implements [`RiscZeroVerifierInterface`] without
+//! performing any real proof verification. It is the Soroban counterpart of the
+//! Ethereum mock verifier used with `DEV_MODE=1` in the RISC Zero toolchain.
 //!
 //! ## Seal Format
 //!
@@ -108,7 +108,8 @@ impl RiscZeroMockVerifier {
 
     /// Returns the configured selector as `BytesN<4>`.
     ///
-    /// Returns [`VerifierError::InvalidSelector`] if the stored value is missing or malformed.
+    /// Returns [`VerifierError::InvalidSelector`] if the stored value is
+    /// missing or malformed.
     pub fn selector(env: Env) -> Result<BytesN<4>, VerifierError> {
         let selector = read_selector(&env)?;
         BytesN::try_from(&selector).map_err(|_| VerifierError::InvalidSelector)
@@ -116,7 +117,8 @@ impl RiscZeroMockVerifier {
 
     /// Build a mock receipt for the given image ID and journal digest.
     ///
-    /// The seal format matches the Ethereum mock verifier: `selector || claim_digest`.
+    /// The seal format matches the Ethereum mock verifier: `selector ||
+    /// claim_digest`.
     pub fn mock_prove(
         env: Env,
         image_id: BytesN<32>,
@@ -129,7 +131,8 @@ impl RiscZeroMockVerifier {
 
     /// Build a mock receipt for a precomputed claim digest.
     ///
-    /// The seal format matches the Ethereum mock verifier: `selector || claim_digest`.
+    /// The seal format matches the Ethereum mock verifier: `selector ||
+    /// claim_digest`.
     pub fn mock_prove_claim(env: Env, claim_digest: BytesN<32>) -> Result<Receipt, VerifierError> {
         let selector = read_selector(&env)?;
         let mut seal = Bytes::new(&env);
