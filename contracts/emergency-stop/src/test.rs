@@ -129,3 +129,12 @@ fn estop_with_receipt_pauses_and_calls_verifier() {
     assert!(client.paused());
     assert!(verifier_client.integrity_called());
 }
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1002)")]
+fn unpause_always_panics() {
+    let (env, owner, client, _verifier_client) = setup();
+
+    env.mock_all_auths();
+    client.unpause(&owner);
+}
