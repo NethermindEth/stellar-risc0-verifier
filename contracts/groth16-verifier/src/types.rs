@@ -27,6 +27,12 @@ use soroban_sdk::{
 
 use risc0_interface::VerifierError;
 
+/// Number of public inputs expected by the RISC Zero Groth16 verifier.
+pub const PUBLIC_INPUTS_LEN: usize = 5;
+
+/// Number of IC points in the verification key: one constant term plus one per public input.
+pub const IC_LEN: usize = PUBLIC_INPUTS_LEN + 1;
+
 /// Size of the 4-byte selector prefix in a seal.
 const SELECTOR_SIZE: usize = 4;
 
@@ -60,7 +66,7 @@ pub struct VerificationKey {
     pub beta: G2Affine,
     pub gamma: G2Affine,
     pub delta: G2Affine,
-    pub ic: [G1Affine; 6],
+    pub ic: [G1Affine; IC_LEN],
 }
 
 /// Byte-oriented version of the verification key generated at build time.
@@ -75,7 +81,7 @@ pub struct VerificationKeyBytes {
     pub beta: [u8; G2_SIZE],
     pub gamma: [u8; G2_SIZE],
     pub delta: [u8; G2_SIZE],
-    pub ic: [[u8; G1_SIZE]; 6],
+    pub ic: [[u8; G1_SIZE]; IC_LEN],
 }
 
 impl VerificationKeyBytes {

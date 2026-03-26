@@ -13,6 +13,9 @@ use ark_ff::{BigInteger, PrimeField};
 use build_utils::{Sha256Digest, hash_g1_point, hash_g2_point, tagged_iter, tagged_struct};
 use serde::Deserialize;
 
+const PUBLIC_INPUTS_LEN: usize = 5;
+const IC_LEN: usize = PUBLIC_INPUTS_LEN + 1;
+
 struct VerificationKey {
     alpha: G1Affine,
     beta: G2Affine,
@@ -219,6 +222,11 @@ fn main() {
     let params: VerifierParameters = serde_json::from_str(&data).unwrap();
 
     let vk = params.verification_key.to_verification_key();
+    assert_eq!(
+        vk.ic.len(),
+        IC_LEN,
+        "verification_key.IC must contain {IC_LEN} points for {PUBLIC_INPUTS_LEN} public inputs"
+    );
 
     // Compute all parameters (this will print intermediate values)
     let vk_digest = compute_vk_digest(&vk);
