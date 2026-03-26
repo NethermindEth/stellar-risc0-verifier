@@ -5,7 +5,9 @@ use soroban_sdk::{
     Address, Bytes, BytesN, Env, contract, contractimpl, contracttype, testutils::Address as _,
 };
 
-use crate::{RiscZeroVerifierEmergencyStop, RiscZeroVerifierEmergencyStopClient};
+use crate::{
+    EmergencyStopError, RiscZeroVerifierEmergencyStop, RiscZeroVerifierEmergencyStopClient,
+};
 
 #[contract]
 struct MockVerifier;
@@ -137,4 +139,21 @@ fn unpause_always_panics() {
 
     env.mock_all_auths();
     client.unpause(&owner);
+}
+
+#[test]
+fn estop_with_invalid_receipt_requires_dont_pause() {
+    let (env, _owner, client, _verifier_client) = setup();
+
+    let receipt = Receipt {
+        seal: Bytes::from_slice(&env, &[0xBB]),
+        claim_digest: BytesN::from_array(&env, &[1u8; 32]),
+    };
+
+    let Err(Ok(err)) = client.try_estop_with_receipt(&receipt) else {
+        panic!("expected estop_with_receipt to fail");
+    };
+
+    assert_eq!(err, EmergencyStopError::InvalidProofOfExploit.into());
+    assert!(!client.paused());
 }
