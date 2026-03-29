@@ -68,7 +68,10 @@ impl RiscZeroVerifierEmergencyStop {
         }
 
         // Ensure the proof-of-exploit receipt is valid.
-        let _ = Self::verify_integrity(env.clone(), receipt);
+        // Do NOT discard the result — if verification fails, the contract
+        // must not be paused (pause is irreversible, there is no unpause).
+        Self::verify_integrity(env.clone(), receipt)
+            .unwrap_or_else(|_| panic_with_error!(&env, EmergencyStopError::InvalidProofOfExploit));
 
         pausable::pause(&env);
     }
