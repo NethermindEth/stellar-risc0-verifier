@@ -22,7 +22,7 @@ use core::array;
 
 use soroban_sdk::{
     Bytes, BytesN, Env, contracttype,
-    crypto::bn254::{Bn254G1Affine as G1Affine, Bn254G2Affine as G2Affine},
+    crypto::bn254::{Bn254G1Affine, Bn254G2Affine},
 };
 
 use risc0_interface::VerifierError;
@@ -62,11 +62,11 @@ const SEAL_SIZE: usize = SELECTOR_SIZE + PROOF_SIZE;
 /// contract storage.
 #[derive(Clone)]
 pub struct VerificationKey {
-    pub alpha: G1Affine,
-    pub beta: G2Affine,
-    pub gamma: G2Affine,
-    pub delta: G2Affine,
-    pub ic: [G1Affine; IC_LEN],
+    pub alpha: Bn254G1Affine,
+    pub beta: Bn254G2Affine,
+    pub gamma: Bn254G2Affine,
+    pub delta: Bn254G2Affine,
+    pub ic: [Bn254G1Affine; IC_LEN],
 }
 
 /// Byte-oriented version of the verification key generated at build time.
@@ -91,11 +91,11 @@ impl VerificationKeyBytes {
     /// representations using the Soroban crypto API.
     pub fn verification_key(&self, env: &Env) -> VerificationKey {
         VerificationKey {
-            alpha: G1Affine::from_array(env, &self.alpha),
-            beta: G2Affine::from_array(env, &self.beta),
-            gamma: G2Affine::from_array(env, &self.gamma),
-            delta: G2Affine::from_array(env, &self.delta),
-            ic: array::from_fn(|i| G1Affine::from_array(env, &self.ic[i])),
+            alpha: Bn254G1Affine::from_array(env, &self.alpha),
+            beta: Bn254G2Affine::from_array(env, &self.beta),
+            gamma: Bn254G2Affine::from_array(env, &self.gamma),
+            delta: Bn254G2Affine::from_array(env, &self.delta),
+            ic: array::from_fn(|i| Bn254G1Affine::from_array(env, &self.ic[i])),
         }
     }
 }
@@ -115,11 +115,11 @@ impl VerificationKeyBytes {
 #[contracttype]
 pub struct Groth16Proof {
     /// First proof element (G1 affine point).
-    pub a: G1Affine,
+    pub a: Bn254G1Affine,
     /// Second proof element (G2 affine point).
-    pub b: G2Affine,
+    pub b: Bn254G2Affine,
     /// Third proof element (G1 affine point).
-    pub c: G1Affine,
+    pub c: Bn254G1Affine,
 }
 
 /// A Groth16 seal combining a verifier selector with a proof.
@@ -191,19 +191,19 @@ impl TryFrom<Bytes> for Groth16Proof {
             return Err(VerifierError::MalformedSeal);
         }
 
-        let a = G1Affine::from_bytes(
+        let a = Bn254G1Affine::from_bytes(
             value
                 .slice(0..G1_SIZE as u32)
                 .try_into()
                 .map_err(|_| VerifierError::MalformedSeal)?,
         );
-        let b = G2Affine::from_bytes(
+        let b = Bn254G2Affine::from_bytes(
             value
                 .slice(G1_SIZE as u32..G1_SIZE as u32 + G2_SIZE as u32)
                 .try_into()
                 .map_err(|_| VerifierError::MalformedSeal)?,
         );
-        let c = G1Affine::from_bytes(
+        let c = Bn254G1Affine::from_bytes(
             value
                 .slice(G1_SIZE as u32 + G2_SIZE as u32..)
                 .try_into()
