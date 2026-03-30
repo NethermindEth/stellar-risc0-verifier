@@ -19,5 +19,8 @@ lcov.info
 .soroban
 .stellar
 
+# Python
+__pycache__/
+
 # Contracts
 contracts/**/test_snapshots

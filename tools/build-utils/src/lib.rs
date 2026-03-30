@@ -1,27 +1,30 @@
 //! Build-time utilities for cryptographic hashing operations.
 //!
-//! This crate provides low-level cryptographic hashing utilities for build scripts
-//! across the stellar-risc0-verifier workspace.
+//! This crate provides low-level cryptographic hashing utilities for build
+//! scripts across the stellar-risc0-verifier workspace.
 //!
 //! ## Overview
 //!
-//! The crate implements cryptographic hashing utilities used in the RISC Zero verification system:
+//! The crate implements cryptographic hashing utilities used in the RISC Zero
+//! verification system:
 //!
-//! - **Tagged Hashing**: A scheme for creating unique, collision-resistant hashes for structured data
-//!   by combining type tags with content digests
+//! - **Tagged Hashing**: A scheme for creating unique, collision-resistant
+//!   hashes for structured data by combining type tags with content digests
 //! - **Point Hashing**: SHA-256 hashing of elliptic curve points
 //! - **List Hashing**: Cons-list based hashing for collections of digests
 //!
 //! ## Main Functions
 //!
-//! - [`hash_point()`]: Hashes elliptic curve points in a standardized format
+//! - [`hash_g1_point()`]: Hashes BN254 G1 points in a standardized format
+//! - [`hash_g2_point()`]: Hashes BN254 G2 points in a standardized format
 //! - [`tagged_struct()`]: Creates hashes for tagged structs with named fields
 //! - [`tagged_iter()`]: Creates hashes for tagged lists from iterators
 //!
 //! ## Usage in Build Scripts
 //!
-//! These utilities serve as building blocks for higher-level cryptographic operations
-//! in build scripts, such as generating verification keys and computing control roots
+//! These utilities serve as building blocks for higher-level cryptographic
+//! operations in build scripts, such as generating verification keys and
+//! computing control roots
 //!
 //! ## Example
 //!
@@ -79,9 +82,10 @@ pub fn hash_g2_point(p: &G2Affine) -> Sha256Digest {
 
 /// Creates a tagged struct hash from a tag and a list of field digests.
 ///
-/// This function implements a tagged hashing scheme where a struct is identified by a tag
-/// and contains zero or more fields (represented as digests). The resulting hash is computed
-/// by concatenating the tag digest, all field digests, and the field count (as a little-endian u16).
+/// This function implements a tagged hashing scheme where a struct is
+/// identified by a tag and contains zero or more fields (represented as
+/// digests). The resulting hash is computed by concatenating the tag digest,
+/// all field digests, and the field count (as a little-endian u16).
 ///
 /// # Arguments
 ///
@@ -121,9 +125,10 @@ pub fn tagged_struct(tag: &str, down: &[Sha256Digest]) -> Sha256Digest {
 
 /// Creates a tagged list hash from a tag and an iterator of digests.
 ///
-/// This function implements a tagged hashing scheme for lists, processing elements
-/// from right to left (using `rfold`) to build a cons-list structure. Each element
-/// is combined with the accumulated list digest using the `tagged_list_cons` function.
+/// This function implements a tagged hashing scheme for lists, processing
+/// elements from right to left (using `rfold`) to build a cons-list structure.
+/// Each element is combined with the accumulated list digest using the
+/// `tagged_list_cons` function.
 ///
 /// # Arguments
 ///
@@ -144,9 +149,9 @@ pub fn tagged_iter(tag: &str, iter: impl DoubleEndedIterator<Item = Sha256Digest
 
 /// Constructs a cons cell for a tagged list.
 ///
-/// This is a helper function that creates a tagged struct representing a cons cell
-/// in a linked list structure. A cons cell consists of a head element and a tail
-/// (the rest of the list).
+/// This is a helper function that creates a tagged struct representing a cons
+/// cell in a linked list structure. A cons cell consists of a head element and
+/// a tail (the rest of the list).
 ///
 /// # Arguments
 ///

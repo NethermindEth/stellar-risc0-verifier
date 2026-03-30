@@ -1,0 +1,16 @@
+# RISC Zero Stellar Deployment Configuration
+# Managed by scripts/manage.sh — auto-updated after deploy/management operations
+
+[chains.stellar-testnet]
+name = "Stellar Testnet"
+admin = ""
+router = ""
+timelock-controller = ""
+timelock-delay = 0
+
+[chains.stellar-mainnet]
+name = "Stellar Mainnet"
+admin = ""
+router = ""
+timelock-controller = ""
+timelock-delay = 604800

@@ -24,7 +24,7 @@ jobs:
         run: cargo clean --doc
 
       - name: Build documentation
-        run: RUSTDOCFLAGS="--html-in-header" cargo doc --no-deps -p template_crate
+        run: cargo doc --workspace --no-deps
 
       - name: Remove lock file
         run: rm target/doc/.lock
