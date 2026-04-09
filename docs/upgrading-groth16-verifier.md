@@ -13,7 +13,7 @@ The router dispatches by the first 4 bytes of `seal` (the selector), which is de
 
 ## Step 1 - Update the parameters file
 
-Edit [`contracts/groth16-verifier/parameters.json`](../contracts/groth16-verifier/parameters.json).
+Edit [`contracts/groth16-verifier/parameters.json`](../contracts/groth16-verifier/parameters.json) with the new `control_root, version` and `bn254_control_id`
 
 This gets embedded at build time. The Groth16 verifier’s `build.rs` derives everything from it:
 
