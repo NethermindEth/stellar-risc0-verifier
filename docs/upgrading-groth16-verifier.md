@@ -66,4 +66,4 @@ Once executed, proofs carrying that selector will verify through the router.
 
 - Selector derivation: [`contracts/groth16-verifier/build.rs`](../contracts/groth16-verifier/build.rs)
 - Parameters file: [`contracts/groth16-verifier/parameters.json`](../contracts/groth16-verifier/parameters.json)
-- Original design doc: [`risc0-ethereum/contracts/version-management-design.md`](../risc0-ethereum/contracts/version-management-design.md)
+- Architecture: [`docs/architecture.md`](./architecture.md)
