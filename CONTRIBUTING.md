@@ -13,9 +13,6 @@ git config commit.gpgsign true
 * [Rust](https://www.rust-lang.org/tools/install) (stable toolchain)
 * Soroban WASM target: `rustup target add wasm32v1-none`
 * [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/install-cli): `cargo install stellar-cli --locked`
-* [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)
-* [typos](https://github.com/crate-ci/typos)
-* [cargo-sort](https://github.com/DevinR528/cargo-sort)
 
 ## Workspace structure
 
@@ -40,21 +37,6 @@ git config core.hooksPath .githooks
 ```
 
 ## Run CI locally
-
-Fastest way to run the full suite:
-
-```sh
-make check          # lint + test
-```
-
-Or run individual steps:
-
-```sh
-make lint           # cargo sort, fmt, clippy, deny, typos
-make test           # build + cargo test
-```
-
-Without Make:
 
 ```sh
 cargo sort --workspace --check
