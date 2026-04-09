@@ -35,7 +35,7 @@ cmd_deploy_router() {
         --min_delay "$min_delay" \
         --proposers "[$DEPLOYER_JSON]" \
         --executors "[$DEPLOYER_JSON]" \
-        --admin "$DEPLOYER_JSON"
+        --admin "\"$admin\""
 
     TIMELOCK_ID=$(tail -n 1 "${TMP_DIR}/manage_timelock_deploy.txt")
     success "TimelockController deployed!"
