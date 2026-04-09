@@ -13,4 +13,5 @@ name = "Stellar Mainnet"
 admin = ""
 router = ""
 timelock-controller = ""
+# 604800 seconds = 7 days
 timelock-delay = 604800
