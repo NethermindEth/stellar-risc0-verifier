@@ -1,6 +1,6 @@
 // This build script helps us generate the VerificationKey for the
 // RiscZeroGroth16Verifier during the compilation. The key is fetched from
-// `config.json` and makes it available as a const to the contract. This way,
+// `parameter.json` and makes it available as a const to the contract. This way,
 // the verification key gets included in the contract at compile time, so we
 // don't have to initialize the contract and spend resources on reading from the
 // ledger the verification key.
@@ -13,6 +13,8 @@ use ark_ff::{BigInteger, PrimeField};
 use build_utils::{Sha256Digest, hash_g1_point, hash_g2_point, tagged_iter, tagged_struct};
 use serde::Deserialize;
 
+// Groth16 exposes one IC point per public input plus IC[0], the constant term
+// in the accumulator: IC[0] + sum_i public_inputs[i] * IC[i + 1].
 const PUBLIC_INPUTS_LEN: usize = 5;
 const IC_LEN: usize = PUBLIC_INPUTS_LEN + 1;
 
