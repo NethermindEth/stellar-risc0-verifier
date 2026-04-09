@@ -14,7 +14,7 @@ Four contracts make up the system:
 ```
                     ┌─────────────────────┐
                     │  TimelockController │──── proposer/executor/canceller roles
-                    │   (owns the router) 
+                    │   (owns the router) │
                     └──────────┬──────────┘
                                │ owner
                     ┌──────────▼──────────┐
